@@ -51,20 +51,44 @@ img.season-no-match:hover {
 
 /* Match Badge */
 .season-badge {
-  position: absolute;
+  position: absolute !important;
+  display: flex !important;
+  flex: none !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  flex-basis: auto !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  box-sizing: border-box !important;
   border-radius: 50%;
-  display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 16px !important;
+  line-height: 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   pointer-events: none;
+}
+
+/* Ensure badge maintains fixed size and is never affected by container sizing */
+.season-filter-container > .season-badge {
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
 }
 
 .season-badge.match {
