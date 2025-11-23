@@ -220,6 +220,32 @@
       </div>
     </section>
 
+    <!-- Manual Color Picker Section -->
+    <section class="section" id="color-picker-section">
+      <div class="picker-card">
+        <div class="picker-header">
+          <div class="picker-icon">🎨</div>
+          <div class="picker-info">
+            <h3 class="picker-title">Manual Color Picker</h3>
+            <p class="picker-description">Pick any color from the page to check if it matches your palette</p>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="activate-picker">
+          <span class="btn-icon">👁️</span>
+          Pick a Color
+        </button>
+      </div>
+
+      <!-- Color History -->
+      <div id="color-history-container" style="display: none;">
+        <div class="section-header">
+          <h3 class="section-subtitle">Recently Picked</h3>
+          <button class="btn btn-text btn-sm" id="clear-history">Clear</button>
+        </div>
+        <div id="color-history" class="color-history-list"></div>
+      </div>
+    </section>
+
     <!-- Wishlist Section -->
     <section class="section" id="wishlist-section">
       <div class="section-header">

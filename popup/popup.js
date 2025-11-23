@@ -16,6 +16,7 @@
   };
 
   let wishlist = [];
+  let colorHistory = [];
 
   /**
    * Initialize popup
@@ -26,6 +27,9 @@
 
     // Load wishlist
     await loadWishlist();
+
+    // Load color history
+    await loadColorHistory();
 
     // Set up event listeners
     setupEventListeners();
@@ -63,6 +67,20 @@
   }
 
   /**
+   * Load color history from storage
+   */
+  function loadColorHistory() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getColorHistory' }, (response) => {
+        if (response) {
+          colorHistory = response.history || [];
+        }
+        resolve();
+      });
+    });
+  }
+
+  /**
    * Set up event listeners
    */
   function setupEventListeners() {
@@ -93,6 +111,18 @@
     if (clearWishlistBtn) {
       clearWishlistBtn.addEventListener('click', clearWishlist);
     }
+
+    // Activate eyedropper
+    const activatePickerBtn = document.getElementById('activate-picker');
+    if (activatePickerBtn) {
+      activatePickerBtn.addEventListener('click', activateEyedropper);
+    }
+
+    // Clear color history
+    const clearHistoryBtn = document.getElementById('clear-history');
+    if (clearHistoryBtn) {
+      clearHistoryBtn.addEventListener('click', clearColorHistory);
+    }
   }
 
   /**
@@ -114,6 +144,9 @@
 
     // Update wishlist display
     renderWishlist();
+
+    // Update color history display
+    renderColorHistory();
 
     // Highlight selected season
     document.querySelectorAll('.season-card').forEach(card => {
@@ -289,6 +322,115 @@
       }
     });
   }
+
+  /**
+   * Activate eyedropper tool
+   */
+  async function activateEyedropper() {
+    // Check if season is selected
+    if (!currentSettings.selectedSeason) {
+      alert('Please select a season first!');
+      return;
+    }
+
+    try {
+      // Get active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (!tab || !tab.id) {
+        alert('No active tab found');
+        return;
+      }
+
+      // Send message to activate eyedropper
+      chrome.runtime.sendMessage({
+        action: 'activateEyedropper',
+        tabId: tab.id
+      }, (response) => {
+        if (response && response.success) {
+          // Close popup to allow user to interact with page
+          window.close();
+        } else {
+          alert('Failed to activate eyedropper: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    } catch (error) {
+      console.error('Error activating eyedropper:', error);
+      alert('Failed to activate eyedropper');
+    }
+  }
+
+  /**
+   * Render color history
+   */
+  function renderColorHistory() {
+    const historyContainer = document.getElementById('color-history');
+    const historySection = document.getElementById('color-history-container');
+
+    if (!historyContainer || !historySection) return;
+
+    if (colorHistory.length === 0) {
+      historySection.style.display = 'none';
+      return;
+    }
+
+    historySection.style.display = 'block';
+
+    // Show last 5 colors
+    const recentColors = colorHistory.slice(0, 5);
+
+    historyContainer.innerHTML = recentColors.map(color => {
+      const matchClass = color.match ? 'match' : 'no-match';
+      const matchIcon = color.match ? '✓' : '✗';
+      const matchText = color.match ? 'Matches' : 'No match';
+
+      return `
+        <div class="history-item ${matchClass}">
+          <div class="history-color-info">
+            <div class="history-swatch" style="background: ${color.hex};"></div>
+            <div class="history-details">
+              <div class="history-hex">${color.hex}</div>
+              <div class="history-status ${matchClass}">
+                <span>${matchIcon}</span>
+                <span>${matchText}</span>
+              </div>
+            </div>
+          </div>
+          <div class="history-distance">ΔE ${color.distance}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /**
+   * Clear color history
+   */
+  function clearColorHistory() {
+    if (!confirm('Clear color history?')) {
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      action: 'clearColorHistory'
+    }, (response) => {
+      if (response && response.success) {
+        colorHistory = [];
+        renderColorHistory();
+      }
+    });
+  }
+
+  /**
+   * Listen for color history updates
+   */
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'colorHistoryUpdated') {
+      // Reload color history
+      loadColorHistory().then(() => {
+        renderColorHistory();
+      });
+    }
+  });
 
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {

@@ -15,7 +15,8 @@
 let storageCache = {
   selectedSeason: null,
   filterEnabled: true,
-  wishlist: []
+  wishlist: [],
+  colorHistory: []
 };
 
 /**
@@ -51,8 +52,9 @@ chrome.storage.sync.get(['selectedSeason', 'filterEnabled'], (data) => {
   storageCache.filterEnabled = data.filterEnabled !== false; // Default true
 });
 
-chrome.storage.local.get(['wishlist'], (data) => {
+chrome.storage.local.get(['wishlist', 'colorHistory'], (data) => {
   storageCache.wishlist = data.wishlist || [];
+  storageCache.colorHistory = data.colorHistory || [];
 });
 
 /**
@@ -69,6 +71,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   } else if (areaName === 'local') {
     if (changes.wishlist) {
       storageCache.wishlist = changes.wishlist.newValue;
+    }
+    if (changes.colorHistory) {
+      storageCache.colorHistory = changes.colorHistory.newValue;
     }
   }
 });
@@ -192,6 +197,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep channel open for async response
+  }
+
+  // Activate eyedropper
+  if (request.action === 'activateEyedropper') {
+    const tabId = request.tabId;
+
+    if (!tabId) {
+      sendResponse({ success: false, error: 'No tab ID provided' });
+      return true;
+    }
+
+    // Inject eyedropper script into the tab
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content/eyedropper.js']
+    }).then(() => {
+      sendResponse({ success: true });
+    }).catch(error => {
+      console.error('Failed to inject eyedropper:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+
+    return true; // Keep channel open for async response
+  }
+
+  // Save picked color to history
+  if (request.action === 'savePickedColor') {
+    const color = request.color;
+
+    // Add to beginning of history
+    storageCache.colorHistory.unshift(color);
+
+    // Keep only last 50 colors
+    if (storageCache.colorHistory.length > 50) {
+      storageCache.colorHistory = storageCache.colorHistory.slice(0, 50);
+    }
+
+    chrome.storage.local.set({ colorHistory: storageCache.colorHistory }, () => {
+      // Notify popup to update display
+      chrome.runtime.sendMessage({
+        type: 'colorHistoryUpdated'
+      }).catch(() => {
+        // Popup might be closed, ignore error
+      });
+
+      sendResponse({ success: true });
+    });
+
+    return true;
+  }
+
+  // Get color history
+  if (request.action === 'getColorHistory') {
+    sendResponse({ history: storageCache.colorHistory });
+    return true;
+  }
+
+  // Clear color history
+  if (request.action === 'clearColorHistory') {
+    storageCache.colorHistory = [];
+
+    chrome.storage.local.set({ colorHistory: [] }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
   }
 
   return false;

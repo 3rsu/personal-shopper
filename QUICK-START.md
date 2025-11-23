@@ -69,8 +69,67 @@ The icons are currently SVG placeholders. To fix:
 
 ---
 
+---
+
+## 🆕 Manual Color Picker (Eyedropper)
+
+### What It Does
+Pick any color from any website and instantly check if it matches your palette. **Works even when auto-detect fails due to CORS!**
+
+### How to Use
+
+1. **Click "Pick a Color"** button in popup
+2. **Hover** over any element on the page
+3. **Click** to capture the color
+4. **See instant results**:
+   - ✓ Green = Matches your palette
+   - ✗ Red = Doesn't match
+   - ΔE score = Color distance
+
+### When to Use It
+
+- **Auto-detect blocked** - CORS-protected images (Amazon, Etsy, Pinterest)
+- **Specific colors** - Check exact colors on buttons, text, backgrounds
+- **Manual verification** - Double-check auto-detect results
+- **Color exploration** - Sample colors for inspiration
+
+### Quick Example
+
+```
+1. Open Amazon product page
+2. Auto-detect might fail (CORS error)
+3. Click "Pick a Color" in popup
+4. Hover over product image
+5. Click to sample
+6. ✅ Result shows if it matches!
+```
+
+### Features
+
+- 🔍 **5x Magnifier** - See zoomed pixels while hovering
+- 🎯 **Crosshair cursor** - Precision targeting
+- 📊 **ΔE scoring** - Scientific color matching
+- 📝 **History** - Last 50 colors saved
+- 🚀 **Works everywhere** - No CORS issues!
+
+### Keyboard Shortcuts
+
+- **ESC** - Cancel and exit picker
+- **Click** - Capture color
+
+---
+
+## Documentation
+
+- **Quick Start** - You're reading it!
+- **[EYEDROPPER-FEATURE.md](EYEDROPPER-FEATURE.md)** - Full technical documentation
+- **[INSTALLATION-CHECKLIST.md](INSTALLATION-CHECKLIST.md)** - Setup guide
+- **[README.md](README.md)** - Complete feature list
+
+---
+
 ## Need Help?
 
-See [README.md](README.md) for full documentation.
+See [README.md](README.md) for full documentation or [EYEDROPPER-FEATURE.md](EYEDROPPER-FEATURE.md) for eyedropper details.
 
 Enjoy shopping in your perfect colors! 🎨✨

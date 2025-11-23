@@ -50,7 +50,11 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["icons/*"],
+      "resources": [
+        "icons/*",
+        "content/eyedropper.js",
+        "content/eyedropper.css"
+      ],
       "matches": ["*://*/*"]
     }
   ]
