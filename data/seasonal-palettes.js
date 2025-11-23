@@ -2,7 +2,7 @@
  * SEASONAL COLOR PALETTES
  *
  * Based on 12-season professional color analysis theory.
- * Each palette contains 15-18 carefully curated colors.
+ * Each palette contains 20 carefully curated colors.
  *
  * Color Theory:
  * - BRIGHT/CLEAR: High contrast, vivid, pure colors
@@ -22,20 +22,25 @@ const SEASONAL_PALETTES = {
     colors: [
       '#FF6347', // Bright Coral
       '#FFD700', // Golden Yellow
-      '#FF69B4', // Hot Pink
       '#00CED1', // Turquoise
-      '#FF8C00', // Dark Orange
+      '#FF69B4', // Hot Pink
       '#32CD32', // Lime Green
-      '#FF1493', // Deep Pink
-      '#00BFFF', // Deep Sky Blue
-      '#FFB6C1', // Light Pink
-      '#FFA500', // Orange
-      '#98FB98', // Pale Green
-      '#87CEEB', // Sky Blue
-      '#FF4500', // Orange Red
-      '#7FFF00', // Chartreuse
-      '#FF69B4'  // Hot Pink
-    ]
+      '#FF8C00',
+      '#00BFFF',
+      '#FF1493',
+      '#FFB6C1',
+      '#FFA500',
+      '#98FB98',
+      '#87CEEB',
+      '#FF4500',
+      '#7FFF00',
+      '#F5DEB3',
+      '#00FA9A',
+      '#FF7F50',
+      '#ADFF2F',
+      '#FF6EB4',
+      '#40E0D0',
+    ],
   },
 
   'warm-spring': {
@@ -43,22 +48,27 @@ const SEASONAL_PALETTES = {
     description: 'Warm, golden, peachy colors',
     emoji: '🌸',
     colors: [
-      '#FFE5B4', // Peach
-      '#FFDAB9', // Peach Puff
-      '#FFD700', // Golden Yellow
-      '#FFA07A', // Light Salmon
-      '#F0E68C', // Khaki
-      '#FA8072', // Salmon
-      '#FFE4B5', // Moccasin
-      '#FF6347', // Tomato
-      '#F08080', // Light Coral
-      '#FFEFD5', // Papaya Whip
-      '#98FB98', // Pale Green
-      '#7FFFD4', // Aquamarine
-      '#FFB6C1', // Light Pink
-      '#90EE90', // Light Green
-      '#FFDB58'  // Mustard
-    ]
+      '#FFE5B4',
+      '#FFDAB9',
+      '#FFD700',
+      '#FFA07A',
+      '#F0E68C',
+      '#FA8072',
+      '#FFE4B5',
+      '#FF6347',
+      '#F08080',
+      '#FFEFD5',
+      '#98FB98',
+      '#FFDB58',
+      '#F4A460',
+      '#FFEBCD',
+      '#FFE4C4',
+      '#FFD39B',
+      '#FFE6C7',
+      '#FFD8B1',
+      '#FFF1B5',
+      '#FFE8A1',
+    ],
   },
 
   'light-spring': {
@@ -66,22 +76,27 @@ const SEASONAL_PALETTES = {
     description: 'Warm, light, delicate pastels',
     emoji: '🌼',
     colors: [
-      '#FFF8DC', // Cornsilk
-      '#FFE4E1', // Misty Rose
-      '#FFFACD', // Lemon Chiffon
-      '#FFE4B5', // Moccasin
-      '#FAFAD2', // Light Goldenrod
-      '#F0E68C', // Khaki
-      '#EEE8AA', // Pale Goldenrod
-      '#FFB6C1', // Light Pink
-      '#FFDAB9', // Peach Puff
-      '#E0FFFF', // Light Cyan
-      '#F5FFFA', // Mint Cream
-      '#FFF0F5', // Lavender Blush
-      '#FFFAF0', // Floral White
-      '#F0FFF0', // Honeydew
-      '#FFE4E1'  // Misty Rose
-    ]
+      '#FFF8DC',
+      '#FFE4E1',
+      '#FFFACD',
+      '#FFE4B5',
+      '#FAFAD2',
+      '#F0E68C',
+      '#EEE8AA',
+      '#FFB6C1',
+      '#FFDAB9',
+      '#E0FFFF',
+      '#F5FFFA',
+      '#FFF0F5',
+      '#FFFAF0',
+      '#F0FFF0',
+      '#FFEFD5',
+      '#FFF5E1',
+      '#FFFACD',
+      '#E6FFE6',
+      '#F5F5DC',
+      '#FFF0F0',
+    ],
   },
 
   // SUMMER VARIATIONS
@@ -90,22 +105,27 @@ const SEASONAL_PALETTES = {
     description: 'Cool, muted, gentle colors',
     emoji: '🌿',
     colors: [
-      '#E6E6FA', // Lavender
-      '#D8BFD8', // Thistle
-      '#DDA0DD', // Plum
-      '#C5B4E3', // Periwinkle
-      '#B0C4DE', // Light Steel Blue
-      '#B0E0E6', // Powder Blue
-      '#AFEEEE', // Pale Turquoise
-      '#D3D3D3', // Light Gray
-      '#C0C0C0', // Silver
-      '#F5F5DC', // Beige
-      '#E0B0FF', // Mauve
-      '#FADADD', // Pink
-      '#C9C0BB', // Mushroom
-      '#B8B4A1', // Sage
-      '#CBBEB5'  // Dusty Rose
-    ]
+      '#E6E6FA',
+      '#D8BFD8',
+      '#DDA0DD',
+      '#C5B4E3',
+      '#B0C4DE',
+      '#B0E0E6',
+      '#AFEEEE',
+      '#D3D3D3',
+      '#C9C0BB',
+      '#B8B4A1',
+      '#CBBEB5',
+      '#F5F5DC',
+      '#E0B0FF',
+      '#E8E8E8',
+      '#D3C4D3',
+      '#C0C0C0',
+      '#DADADA',
+      '#CBC3E3',
+      '#B0A1A1',
+      '#C8C2BF',
+    ],
   },
 
   'cool-summer': {
@@ -113,22 +133,27 @@ const SEASONAL_PALETTES = {
     description: 'Cool, soft, blue-based colors',
     emoji: '🌊',
     colors: [
-      '#B0E0E6', // Powder Blue
-      '#87CEEB', // Sky Blue
-      '#ADD8E6', // Light Blue
-      '#B0C4DE', // Light Steel Blue
-      '#AFEEEE', // Pale Turquoise
-      '#E0FFFF', // Light Cyan
-      '#F0F8FF', // Alice Blue
-      '#E6E6FA', // Lavender
-      '#D8BFD8', // Thistle
-      '#DDA0DD', // Plum
-      '#FFB6C1', // Light Pink
-      '#FFE4E1', // Misty Rose
-      '#F0E68C', // Khaki
-      '#C0C0C0', // Silver
-      '#B0E0E6'  // Powder Blue
-    ]
+      '#B0E0E6',
+      '#87CEEB',
+      '#ADD8E6',
+      '#B0C4DE',
+      '#AFEEEE',
+      '#E0FFFF',
+      '#F0F8FF',
+      '#E6E6FA',
+      '#D8BFD8',
+      '#DDA0DD',
+      '#FFB6C1',
+      '#FFE4E1',
+      '#F0FFF0',
+      '#C0C0C0',
+      '#B0B0B0',
+      '#E0E0FF',
+      '#C9C0FF',
+      '#E6F0FA',
+      '#B8CDE0',
+      '#D1DCE3',
+    ],
   },
 
   'light-summer': {
@@ -136,22 +161,27 @@ const SEASONAL_PALETTES = {
     description: 'Cool, light, airy pastels',
     emoji: '☁️',
     colors: [
-      '#F0F8FF', // Alice Blue
-      '#F5FFFA', // Mint Cream
-      '#F0FFF0', // Honeydew
-      '#FFFAF0', // Floral White
-      '#FFF0F5', // Lavender Blush
-      '#E6E6FA', // Lavender
-      '#F0FFFF', // Azure
-      '#E0FFFF', // Light Cyan
-      '#FFE4E1', // Misty Rose
-      '#FFDAB9', // Peach Puff
-      '#EEE8AA', // Pale Goldenrod
-      '#F5F5DC', // Beige
-      '#FAF0E6', // Linen
-      '#FFF5EE', // Seashell
-      '#F8F8FF'  // Ghost White
-    ]
+      '#F0F8FF',
+      '#F5FFFA',
+      '#F0FFF0',
+      '#FFFAF0',
+      '#FFF0F5',
+      '#E6E6FA',
+      '#F0FFFF',
+      '#E0FFFF',
+      '#FFDAB9',
+      '#EEE8AA',
+      '#F5F5DC',
+      '#FAF0E6',
+      '#FFF5EE',
+      '#F8F8FF',
+      '#FFEFD5',
+      '#F5F5F5',
+      '#E6F2FF',
+      '#E0F0F0',
+      '#DDEEFF',
+      '#F8FAFA',
+    ],
   },
 
   // AUTUMN VARIATIONS
@@ -160,22 +190,27 @@ const SEASONAL_PALETTES = {
     description: 'Warm, rich, intense colors',
     emoji: '🍁',
     colors: [
-      '#8B4513', // Saddle Brown
-      '#A0522D', // Sienna
-      '#D2691E', // Chocolate
-      '#B8860B', // Dark Goldenrod
-      '#8B0000', // Dark Red
-      '#800000', // Maroon
-      '#556B2F', // Dark Olive Green
-      '#6B8E23', // Olive Drab
-      '#8B4789', // Dark Orchid (warm)
-      '#704214', // Sepia
-      '#654321', // Dark Brown
-      '#8B7355', // Burlywood Dark
-      '#C04000', // Mahogany
-      '#5C4033', // Coffee
-      '#3B2F2F'  // Dark Charcoal
-    ]
+      '#8B4513',
+      '#A0522D',
+      '#D2691E',
+      '#B8860B',
+      '#8B0000',
+      '#800000',
+      '#556B2F',
+      '#6B8E23',
+      '#704214',
+      '#654321',
+      '#C04000',
+      '#5C4033',
+      '#3B2F2F',
+      '#8B3A3A',
+      '#4B3A2A',
+      '#6A4E42',
+      '#7F462C',
+      '#A0522D',
+      '#8C4725',
+      '#5A3A2C',
+    ],
   },
 
   'warm-autumn': {
@@ -183,22 +218,27 @@ const SEASONAL_PALETTES = {
     description: 'Warm, golden, earthy colors',
     emoji: '🍂',
     colors: [
-      '#D2691E', // Chocolate
-      '#CD853F', // Peru
-      '#DEB887', // Burlywood
-      '#DAA520', // Goldenrod
-      '#B8860B', // Dark Goldenrod
-      '#F4A460', // Sandy Brown
-      '#BC8F8F', // Rosy Brown
-      '#CC7722', // Ochre
-      '#FF8C00', // Dark Orange
-      '#FFA500', // Orange
-      '#C19A6B', // Camel
-      '#826644', // Raw Umber
-      '#E97451', // Burnt Sienna
-      '#6B8E23', // Olive
-      '#8B7355'  // Burlywood Dark
-    ]
+      '#D2691E',
+      '#CD853F',
+      '#DEB887',
+      '#DAA520',
+      '#B8860B',
+      '#F4A460',
+      '#BC8F8F',
+      '#CC7722',
+      '#FF8C00',
+      '#C19A6B',
+      '#826644',
+      '#E97451',
+      '#6B8E23',
+      '#8B7355',
+      '#FFD39B',
+      '#FFE6A1',
+      '#C9A66B',
+      '#F1C27D',
+      '#E7B77B',
+      '#DFA15D',
+    ],
   },
 
   'soft-autumn': {
@@ -206,22 +246,27 @@ const SEASONAL_PALETTES = {
     description: 'Warm, muted, gentle earth tones',
     emoji: '🌾',
     colors: [
-      '#DEB887', // Burlywood
-      '#D2B48C', // Tan
-      '#BC8F8F', // Rosy Brown
-      '#F5DEB3', // Wheat
-      '#FFE4C4', // Bisque
-      '#FFDEAD', // Navajo White
-      '#BDB76B', // Dark Khaki
-      '#DAA520', // Goldenrod
-      '#C19A6B', // Camel
-      '#B8860B', // Dark Goldenrod
-      '#CD853F', // Peru
-      '#A0522D', // Sienna
-      '#9C8D7B', // Warm Gray
-      '#8B7D6B', // Taupe
-      '#C4A582'  // Desert Sand
-    ]
+      '#DEB887',
+      '#D2B48C',
+      '#BC8F8F',
+      '#F5DEB3',
+      '#FFE4C4',
+      '#FFDEAD',
+      '#BDB76B',
+      '#DAA520',
+      '#C19A6B',
+      '#B8860B',
+      '#CD853F',
+      '#A0522D',
+      '#9C8D7B',
+      '#8B7D6B',
+      '#C4A582',
+      '#A69786',
+      '#B9A58D',
+      '#D0B38A',
+      '#C0A080',
+      '#AD927E',
+    ],
   },
 
   // WINTER VARIATIONS
@@ -230,22 +275,27 @@ const SEASONAL_PALETTES = {
     description: 'Cool, clear, highly saturated',
     emoji: '💎',
     colors: [
-      '#FF0000', // True Red
-      '#0000FF', // Royal Blue
-      '#FF00FF', // Magenta
-      '#00FFFF', // Cyan
-      '#FF1493', // Deep Pink
-      '#00FF00', // Lime
-      '#FFD700', // Gold
-      '#8B00FF', // Electric Violet
-      '#FF4500', // Orange Red
-      '#1E90FF', // Dodger Blue
-      '#FF69B4', // Hot Pink
-      '#00CED1', // Dark Turquoise
-      '#FF6347', // Tomato
-      '#4169E1', // Royal Blue
-      '#FF1493'  // Deep Pink
-    ]
+      '#FF0000',
+      '#0000FF',
+      '#FF00FF',
+      '#00FFFF',
+      '#FF1493',
+      '#00FF00',
+      '#FFD700',
+      '#8B00FF',
+      '#FF4500',
+      '#1E90FF',
+      '#FF69B4',
+      '#00CED1',
+      '#FF6347',
+      '#4169E1',
+      '#00BFFF',
+      '#FF007F',
+      '#9400D3',
+      '#1E90FF',
+      '#FF1493',
+      '#00FF7F',
+    ],
   },
 
   'cool-winter': {
@@ -253,22 +303,27 @@ const SEASONAL_PALETTES = {
     description: 'Cool, icy, blue-based colors',
     emoji: '❄️',
     colors: [
-      '#000000', // Black
-      '#FFFFFF', // Pure White
-      '#0000FF', // Royal Blue
-      '#4B0082', // Indigo
-      '#191970', // Midnight Blue
-      '#483D8B', // Dark Slate Blue
-      '#6A5ACD', // Slate Blue
-      '#C71585', // Medium Violet Red
-      '#8B008B', // Dark Magenta
-      '#4682B4', // Steel Blue
-      '#2F4F4F', // Dark Slate Gray
-      '#708090', // Slate Gray
-      '#B0C4DE', // Light Steel Blue
-      '#E6E6FA', // Lavender
-      '#C0C0C0'  // Silver
-    ]
+      '#000000',
+      '#FFFFFF',
+      '#0000FF',
+      '#4B0082',
+      '#191970',
+      '#483D8B',
+      '#6A5ACD',
+      '#C71585',
+      '#8B008B',
+      '#4682B4',
+      '#2F4F4F',
+      '#708090',
+      '#B0C4DE',
+      '#C9C0FF',
+      '#E6E6FA',
+      '#D8E0F0',
+      '#90AFFF',
+      '#A9CFE6',
+      '#A0B0CC',
+      '#C0C0C0',
+    ],
   },
 
   'deep-winter': {
@@ -276,23 +331,28 @@ const SEASONAL_PALETTES = {
     description: 'Cool, dark, intense colors',
     emoji: '🌑',
     colors: [
-      '#000000', // Black
-      '#8B008B', // Dark Magenta
-      '#800080', // Purple
-      '#4B0082', // Indigo
-      '#191970', // Midnight Blue
-      '#000080', // Navy
-      '#800000', // Maroon
-      '#8B0000', // Dark Red
-      '#2F4F4F', // Dark Slate Gray
-      '#0B1F3E', // Oxford Blue
-      '#1C1C1C', // Eerie Black
-      '#483D8B', // Dark Slate Blue
-      '#DC143C', // Crimson
-      '#8B4513', // Dark Brown
-      '#2C1E3F'  // Dark Purple
-    ]
-  }
+      '#000000',
+      '#8B008B',
+      '#800080',
+      '#4B0082',
+      '#191970',
+      '#000080',
+      '#800000',
+      '#8B0000',
+      '#2F4F4F',
+      '#0B1F3E',
+      '#1C1C1C',
+      '#483D8B',
+      '#DC143C',
+      '#4B3832',
+      '#2C1E3F',
+      '#3B0B0B',
+      '#4D004D',
+      '#1F1F2F',
+      '#3A1F1F',
+      '#2B2B3A',
+    ],
+  },
 };
 
 // Make available globally for content scripts

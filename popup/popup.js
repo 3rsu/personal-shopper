@@ -19,9 +19,49 @@
   let colorHistory = [];
 
   /**
+   * Generate season cards from SEASONAL_PALETTES data
+   */
+  function generateSeasonCards() {
+    const seasonGrid = document.getElementById('season-grid');
+    if (!seasonGrid || !window.SEASONAL_PALETTES) return;
+
+    const seasonsOrder = [
+      'bright-spring', 'warm-spring', 'light-spring',
+      'soft-summer', 'cool-summer', 'light-summer',
+      'deep-autumn', 'warm-autumn', 'soft-autumn',
+      'bright-winter', 'cool-winter', 'deep-winter'
+    ];
+
+    seasonGrid.innerHTML = seasonsOrder.map(seasonKey => {
+      const season = window.SEASONAL_PALETTES[seasonKey];
+      if (!season) return '';
+
+      const first5Colors = season.colors.slice(0, 5);
+
+      return `
+        <button class="season-card" data-season="${seasonKey}">
+          <div class="season-card-header">
+            <span class="season-emoji">${season.emoji}</span>
+            <h3>${season.name}</h3>
+          </div>
+          <p class="season-desc">${season.description}</p>
+          <div class="season-colors">
+            ${first5Colors.map(color =>
+              `<span class="color-dot" style="background: ${color}"></span>`
+            ).join('')}
+          </div>
+        </button>
+      `;
+    }).join('');
+  }
+
+  /**
    * Initialize popup
    */
   async function initialize() {
+    // Generate season cards from data
+    generateSeasonCards();
+
     // Load current settings
     await loadSettings();
 
@@ -195,31 +235,11 @@
     if (seasonGrid) seasonGrid.style.display = 'none';
     if (currentSeasonDiv) currentSeasonDiv.style.display = 'flex';
 
-    if (currentSeasonName && currentSettings.selectedSeason) {
-      // Format season name properly (handle hyphenated names)
-      const seasonName = currentSettings.selectedSeason
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-
-      // Get emoji mapping for all 12 seasons
-      const emojis = {
-        'bright-spring': '🌺',
-        'warm-spring': '🌸',
-        'light-spring': '🌼',
-        'soft-summer': '🌿',
-        'cool-summer': '🌊',
-        'light-summer': '☁️',
-        'deep-autumn': '🍁',
-        'warm-autumn': '🍂',
-        'soft-autumn': '🌾',
-        'bright-winter': '💎',
-        'cool-winter': '❄️',
-        'deep-winter': '🌑'
-      };
-
-      const emoji = emojis[currentSettings.selectedSeason] || '🎨';
-      currentSeasonName.textContent = `${emoji} ${seasonName}`;
+    if (currentSeasonName && currentSettings.selectedSeason && window.SEASONAL_PALETTES) {
+      const season = window.SEASONAL_PALETTES[currentSettings.selectedSeason];
+      if (season) {
+        currentSeasonName.textContent = `${season.emoji} ${season.name}`;
+      }
     }
   }
 
