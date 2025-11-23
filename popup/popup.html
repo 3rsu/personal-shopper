@@ -220,6 +220,46 @@
       </div>
     </section>
 
+    <!-- Price Filter Section -->
+    <section class="section" id="price-filter-section">
+      <h2 class="section-title">💰 Price Filter</h2>
+      <p class="section-description">
+        Filter items by price range (optional)
+      </p>
+
+      <!-- Quick Range Buttons -->
+      <div class="price-quick-ranges">
+        <button class="price-range-btn" data-min="0" data-max="25">Under $25</button>
+        <button class="price-range-btn" data-min="25" data-max="50">$25-$50</button>
+        <button class="price-range-btn" data-min="50" data-max="100">$50-$100</button>
+        <button class="price-range-btn" data-min="100" data-max="null">$100+</button>
+        <button class="price-range-btn active" data-min="null" data-max="null">Any Price</button>
+      </div>
+
+      <!-- Custom Range Inputs -->
+      <div class="price-custom-range">
+        <div class="price-input-group">
+          <label for="min-price">Min</label>
+          <div class="price-input-wrapper">
+            <span class="price-currency">$</span>
+            <input type="number" id="min-price" placeholder="0" min="0" step="1">
+          </div>
+        </div>
+        <span class="price-separator">to</span>
+        <div class="price-input-group">
+          <label for="max-price">Max</label>
+          <div class="price-input-wrapper">
+            <span class="price-currency">$</span>
+            <input type="number" id="max-price" placeholder="∞" min="0" step="1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Apply Button -->
+      <button class="btn btn-primary btn-block" id="apply-price-filter">Apply Price Filter</button>
+      <button class="btn btn-secondary btn-block" id="clear-price-filter" style="display: none;">Clear Price Filter</button>
+    </section>
+
     <!-- Wishlist Section -->
     <section class="section" id="wishlist-section">
       <div class="section-header">

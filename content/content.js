@@ -14,7 +14,10 @@
   // State
   let settings = {
     selectedSeason: null,
-    filterEnabled: true
+    filterEnabled: true,
+    minPrice: null,
+    maxPrice: null,
+    priceFilterEnabled: false
   };
 
   let colorProcessor = null;
@@ -99,6 +102,15 @@
       sendResponse({ success: true });
     }
 
+    if (request.action === 'priceFilterChanged') {
+      settings.minPrice = request.minPrice;
+      settings.maxPrice = request.maxPrice;
+      settings.priceFilterEnabled = request.enabled;
+      console.log('[Season Color Checker] Price filter updated:', settings.minPrice, '-', settings.maxPrice, 'enabled:', settings.priceFilterEnabled);
+      resetAndRefilter();
+      sendResponse({ success: true });
+    }
+
     return true;
   }
 
@@ -138,6 +150,165 @@
 
     console.log('[Season Color Checker] Processing complete. Stats:', stats);
     updateOverlay();
+  }
+
+  /**
+   * Extract price from product element
+   * Handles multiple formats: $49.99, €45,00, ¥5,000, sale prices
+   */
+  function extractPrice(productElement) {
+    if (!productElement) return null;
+
+    // Site-specific price selectors
+    const priceSelectors = {
+      // Amazon
+      'amazon.com': [
+        '.a-price .a-offscreen',
+        '.a-price-whole',
+        'span[data-a-color="price"]',
+        '.a-price span:first-child'
+      ],
+      // Shopify stores
+      'shopify': [
+        '.price',
+        '.product-price',
+        '[data-price]',
+        '.price-item--regular'
+      ],
+      // Generic
+      'generic': [
+        '[class*="price"]',
+        '[id*="price"]',
+        '[data-price]',
+        'span:has-text("$")',
+        'span:has-text("€")',
+        'span:has-text("¥")'
+      ]
+    };
+
+    // Determine which selectors to use
+    const hostname = window.location.hostname;
+    let selectors = priceSelectors.generic;
+
+    if (hostname.includes('amazon')) {
+      selectors = [...priceSelectors['amazon.com'], ...priceSelectors.generic];
+    } else if (document.querySelector('[data-shopify]') || hostname.includes('myshopify')) {
+      selectors = [...priceSelectors['shopify'], ...priceSelectors.generic];
+    }
+
+    // Try each selector
+    for (const selector of selectors) {
+      const priceElements = productElement.querySelectorAll(selector);
+
+      for (const elem of priceElements) {
+        const priceText = elem.textContent || elem.getAttribute('data-price') || elem.getAttribute('content');
+        if (!priceText) continue;
+
+        const price = parsePrice(priceText);
+        if (price !== null && price > 0) {
+          // Also extract currency if available
+          const currency = extractCurrency(priceText);
+          return { price, currency, rawText: priceText.trim() };
+        }
+      }
+    }
+
+    // Fallback: Search nearby text for price patterns
+    const nearbyText = productElement.textContent || '';
+    const price = parsePrice(nearbyText);
+    if (price !== null && price > 0) {
+      const currency = extractCurrency(nearbyText);
+      return { price, currency, rawText: nearbyText.substring(0, 50) };
+    }
+
+    return null;
+  }
+
+  /**
+   * Parse price from text string
+   * Handles: $49.99, €45,00, ¥5,000, "Sale: $29.99 (was $49.99)"
+   */
+  function parsePrice(text) {
+    if (!text) return null;
+
+    // Remove common non-price text
+    text = text.replace(/shipping|free|delivery|tax/gi, '');
+
+    // Match common price patterns
+    // Matches: $49.99, 49.99, €45,00, ¥5,000, 1,234.56
+    const patterns = [
+      /[$€£¥₹]\s*(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{2})?)/,  // $1,234.56
+      /(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{2})?)\s*[$€£¥₹]/,  // 1,234.56$
+      /(\d{1,3}(?:[,\s]\d{3})*(?:[.,]\d{2}))/             // 1,234.56 or 1.234,56
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        // Extract the numeric part
+        let priceStr = match[1] || match[0];
+
+        // Remove currency symbols
+        priceStr = priceStr.replace(/[$€£¥₹]/g, '');
+
+        // Handle different decimal separators
+        // If there's a comma followed by exactly 2 digits at the end, it's a decimal separator
+        if (/,\d{2}$/.test(priceStr)) {
+          priceStr = priceStr.replace(/\./g, '').replace(',', '.');
+        } else {
+          // Remove thousand separators (commas and spaces)
+          priceStr = priceStr.replace(/[,\s]/g, '');
+        }
+
+        const price = parseFloat(priceStr);
+        if (!isNaN(price) && price > 0) {
+          return price;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract currency symbol from text
+   */
+  function extractCurrency(text) {
+    if (!text) return '$';
+
+    if (text.includes('$')) return '$';
+    if (text.includes('€')) return '€';
+    if (text.includes('£')) return '£';
+    if (text.includes('¥')) return '¥';
+    if (text.includes('₹')) return '₹';
+
+    return '$'; // Default to USD
+  }
+
+  /**
+   * Check if price is within range
+   */
+  function isPriceInRange(price) {
+    if (!settings.priceFilterEnabled || price === null) {
+      return true; // No price filter active or no price found
+    }
+
+    const { minPrice, maxPrice } = settings;
+
+    // If no range set, show all
+    if (minPrice === null && maxPrice === null) {
+      return true;
+    }
+
+    // Check bounds
+    if (minPrice !== null && price < minPrice) {
+      return false;
+    }
+    if (maxPrice !== null && price > maxPrice) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -208,6 +379,27 @@
     stats.totalImages++;
 
     try {
+      // Extract price from product container
+      const productContainer = img.closest('[data-product]') ||
+                              img.closest('.product') ||
+                              img.closest('[class*="product"]') ||
+                              img.parentElement?.parentElement ||
+                              img.parentElement;
+
+      const priceData = extractPrice(productContainer);
+      const price = priceData?.price || null;
+      const currency = priceData?.currency || '$';
+
+      // Store price data on image
+      if (price !== null) {
+        img.dataset.price = price;
+        img.dataset.currency = currency;
+        img.dataset.priceRaw = priceData.rawText;
+      }
+
+      // Check if price is in range
+      const priceMatch = isPriceInRange(price);
+
       // Wait for image to load
       if (!img.complete) {
         await new Promise((resolve) => {
@@ -287,17 +479,22 @@
         seasonPalette.colors
       );
 
-      // Apply visual filter based on match
-      applyFilter(img, matchResult);
+      // Combined filter decision: both color AND price must match (when filters are active)
+      const colorMatch = matchResult.matches;
+      const shouldShow = colorMatch && priceMatch;
 
-      // Update stats
-      if (matchResult.matches) {
+      // Apply visual filter based on combined match
+      applyFilter(img, matchResult, priceMatch, price, currency);
+
+      // Update stats (only count if passes all active filters)
+      if (shouldShow) {
         stats.matchingImages++;
       }
 
       // Store match data on element for later use
       img.dataset.seasonMatch = matchResult.matches ? 'true' : 'false';
       img.dataset.matchScore = matchResult.confidence.toFixed(0);
+      img.dataset.priceMatch = priceMatch ? 'true' : 'false';
       img.dataset.dominantColors = JSON.stringify(
         dominantColors.slice(0, 3).map(rgb => colorProcessor.rgbToHex(rgb))
       );
@@ -310,7 +507,7 @@
   /**
    * Apply visual filter to image
    */
-  function applyFilter(img, matchResult) {
+  function applyFilter(img, matchResult, priceMatch, price, currency) {
     // Remove existing filter classes
     img.classList.remove('season-match', 'season-no-match');
 
@@ -323,7 +520,11 @@
       container.appendChild(img);
     }
 
-    if (matchResult.matches) {
+    // Determine if item should be shown (passes all active filters)
+    const colorMatches = matchResult.matches;
+    const shouldShow = colorMatches && priceMatch;
+
+    if (shouldShow) {
       // Green border for matches
       img.classList.add('season-match');
       container.classList.remove('season-dimmed');
@@ -333,11 +534,16 @@
       container.classList.add('season-dimmed');
     }
 
-    // Add match badge
+    // Add match badge (color)
     addMatchBadge(container, matchResult);
 
+    // Add price badge if price is available
+    if (price !== null) {
+      addPriceBadge(container, price, currency, priceMatch);
+    }
+
     // Add hover tooltip
-    addTooltip(img, matchResult);
+    addTooltip(img, matchResult, priceMatch, price, currency);
   }
 
   /**
@@ -365,12 +571,61 @@
   }
 
   /**
+   * Add price badge overlay
+   */
+  function addPriceBadge(container, price, currency, priceMatch) {
+    // Remove existing price badge
+    const existingBadge = container.querySelector('.season-price-badge');
+    if (existingBadge) {
+      existingBadge.remove();
+    }
+
+    const badge = document.createElement('div');
+    badge.className = 'season-price-badge';
+
+    // Format price
+    const formattedPrice = `${currency}${price.toFixed(2)}`;
+    badge.textContent = formattedPrice;
+
+    // Add class based on match status
+    if (priceMatch) {
+      badge.classList.add('price-match');
+    } else {
+      badge.classList.add('price-no-match');
+    }
+
+    container.appendChild(badge);
+  }
+
+  /**
    * Add hover tooltip showing match details
    */
-  function addTooltip(img, matchResult) {
-    img.title = matchResult.matches
+  function addTooltip(img, matchResult, priceMatch, price, currency) {
+    let tooltip = matchResult.matches
       ? `✓ Matches your ${settings.selectedSeason} palette (${matchResult.confidence.toFixed(0)}% match)`
       : `✗ Doesn't match your ${settings.selectedSeason} palette`;
+
+    // Add price info if available
+    if (price !== null) {
+      const priceStr = `${currency}${price.toFixed(2)}`;
+      const priceStatus = priceMatch ? '✓' : '✗';
+
+      if (settings.priceFilterEnabled) {
+        const rangeStr = settings.minPrice !== null && settings.maxPrice !== null
+          ? `${currency}${settings.minPrice}-${currency}${settings.maxPrice}`
+          : settings.minPrice !== null
+          ? `≥ ${currency}${settings.minPrice}`
+          : settings.maxPrice !== null
+          ? `≤ ${currency}${settings.maxPrice}`
+          : 'Any price';
+
+        tooltip += `\n${priceStatus} Price: ${priceStr} (Range: ${rangeStr})`;
+      } else {
+        tooltip += `\nPrice: ${priceStr}`;
+      }
+    }
+
+    img.title = tooltip;
   }
 
   /**
@@ -444,13 +699,17 @@
     if (confirm('Add this item to your wishlist?')) {
       const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
       const matchScore = parseInt(img.dataset.matchScore || '0');
+      const price = img.dataset.price ? parseFloat(img.dataset.price) : null;
+      const currency = img.dataset.currency || '$';
 
       chrome.runtime.sendMessage({
         action: 'addToWishlist',
         imageUrl: img.src,
         pageUrl: window.location.href,
         dominantColors: dominantColors,
-        matchScore: matchScore
+        matchScore: matchScore,
+        price: price,
+        currency: currency
       }, (response) => {
         if (response && response.success) {
           alert('Added to wishlist!');

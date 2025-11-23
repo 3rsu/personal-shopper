@@ -12,7 +12,10 @@
 
   let currentSettings = {
     selectedSeason: null,
-    filterEnabled: true
+    filterEnabled: true,
+    minPrice: null,
+    maxPrice: null,
+    priceFilterEnabled: false
   };
 
   let wishlist = [];
@@ -93,6 +96,74 @@
     if (clearWishlistBtn) {
       clearWishlistBtn.addEventListener('click', clearWishlist);
     }
+
+    // Price filter - Quick range buttons
+    document.querySelectorAll('.price-range-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const minPrice = btn.dataset.min === 'null' ? null : parseFloat(btn.dataset.min);
+        const maxPrice = btn.dataset.max === 'null' ? null : parseFloat(btn.dataset.max);
+
+        // Update active state
+        document.querySelectorAll('.price-range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Update input fields
+        document.getElementById('min-price').value = minPrice !== null ? minPrice : '';
+        document.getElementById('max-price').value = maxPrice !== null ? maxPrice : '';
+
+        // Apply filter
+        applyPriceFilter(minPrice, maxPrice);
+      });
+    });
+
+    // Price filter - Apply button
+    const applyPriceBtn = document.getElementById('apply-price-filter');
+    if (applyPriceBtn) {
+      applyPriceBtn.addEventListener('click', () => {
+        const minPrice = document.getElementById('min-price').value;
+        const maxPrice = document.getElementById('max-price').value;
+
+        const min = minPrice ? parseFloat(minPrice) : null;
+        const max = maxPrice ? parseFloat(maxPrice) : null;
+
+        // Deselect quick range buttons
+        document.querySelectorAll('.price-range-btn').forEach(b => b.classList.remove('active'));
+
+        applyPriceFilter(min, max);
+      });
+    }
+
+    // Price filter - Clear button
+    const clearPriceBtn = document.getElementById('clear-price-filter');
+    if (clearPriceBtn) {
+      clearPriceBtn.addEventListener('click', () => {
+        document.getElementById('min-price').value = '';
+        document.getElementById('max-price').value = '';
+
+        // Activate "Any Price" button
+        document.querySelectorAll('.price-range-btn').forEach(btn => {
+          if (btn.dataset.min === 'null' && btn.dataset.max === 'null') {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+
+        applyPriceFilter(null, null);
+      });
+    }
+
+    // Price input listeners - apply on Enter
+    ['min-price', 'max-price'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            applyPriceBtn.click();
+          }
+        });
+      }
+    });
   }
 
   /**
@@ -112,6 +183,30 @@
       filterToggle.checked = currentSettings.filterEnabled;
     }
 
+    // Update price filter UI
+    const minPriceInput = document.getElementById('min-price');
+    const maxPriceInput = document.getElementById('max-price');
+    const clearPriceBtn = document.getElementById('clear-price-filter');
+
+    if (minPriceInput) {
+      minPriceInput.value = currentSettings.minPrice !== null ? currentSettings.minPrice : '';
+    }
+    if (maxPriceInput) {
+      maxPriceInput.value = currentSettings.maxPrice !== null ? currentSettings.maxPrice : '';
+    }
+
+    // Show/hide clear button
+    if (clearPriceBtn) {
+      if (currentSettings.priceFilterEnabled) {
+        clearPriceBtn.style.display = 'block';
+      } else {
+        clearPriceBtn.style.display = 'none';
+      }
+    }
+
+    // Update quick range button states
+    updatePriceRangeButtons();
+
     // Update wishlist display
     renderWishlist();
 
@@ -121,6 +216,46 @@
         card.classList.add('selected');
       } else {
         card.classList.remove('selected');
+      }
+    });
+  }
+
+  /**
+   * Update price range button active states
+   */
+  function updatePriceRangeButtons() {
+    const { minPrice, maxPrice, priceFilterEnabled } = currentSettings;
+
+    document.querySelectorAll('.price-range-btn').forEach(btn => {
+      const btnMin = btn.dataset.min === 'null' ? null : parseFloat(btn.dataset.min);
+      const btnMax = btn.dataset.max === 'null' ? null : parseFloat(btn.dataset.max);
+
+      // Check if this button matches current settings
+      if (btnMin === minPrice && btnMax === maxPrice) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  /**
+   * Apply price filter
+   */
+  function applyPriceFilter(minPrice, maxPrice) {
+    const enabled = minPrice !== null || maxPrice !== null;
+
+    chrome.runtime.sendMessage({
+      action: 'setPriceFilter',
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      enabled: enabled
+    }, (response) => {
+      if (response && response.success) {
+        currentSettings.minPrice = minPrice;
+        currentSettings.maxPrice = maxPrice;
+        currentSettings.priceFilterEnabled = enabled;
+        updateUI();
       }
     });
   }
@@ -222,29 +357,36 @@
       if (emptyState) emptyState.style.display = 'none';
       wishlistContainer.style.display = 'grid';
 
-      wishlistContainer.innerHTML = wishlist.map(item => `
-        <div class="wishlist-item" data-id="${item.id}">
-          <div class="wishlist-item-image">
-            <img src="${item.imageUrl}" alt="Wishlist item" loading="lazy">
-            <button class="wishlist-item-remove" data-id="${item.id}" title="Remove">
-              ×
-            </button>
-          </div>
-          <div class="wishlist-item-info">
-            <div class="wishlist-item-colors">
-              ${(item.dominantColors || []).slice(0, 3).map(color =>
-                `<span class="color-dot" style="background: ${color}"></span>`
-              ).join('')}
+      wishlistContainer.innerHTML = wishlist.map(item => {
+        const priceDisplay = item.price !== null && item.price !== undefined
+          ? `<div class="wishlist-item-price">${item.currency || '$'}${item.price.toFixed(2)}</div>`
+          : '';
+
+        return `
+          <div class="wishlist-item" data-id="${item.id}">
+            <div class="wishlist-item-image">
+              <img src="${item.imageUrl}" alt="Wishlist item" loading="lazy">
+              <button class="wishlist-item-remove" data-id="${item.id}" title="Remove">
+                ×
+              </button>
             </div>
-            <div class="wishlist-item-score">
-              ${item.matchScore}% match
+            <div class="wishlist-item-info">
+              <div class="wishlist-item-colors">
+                ${(item.dominantColors || []).slice(0, 3).map(color =>
+                  `<span class="color-dot" style="background: ${color}"></span>`
+                ).join('')}
+              </div>
+              <div class="wishlist-item-score">
+                ${item.matchScore}% match
+              </div>
+              ${priceDisplay}
+              <a href="${item.pageUrl}" class="wishlist-item-link" target="_blank" title="View product">
+                View Product →
+              </a>
             </div>
-            <a href="${item.pageUrl}" class="wishlist-item-link" target="_blank" title="View product">
-              View Product →
-            </a>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       // Add remove button listeners
       wishlistContainer.querySelectorAll('.wishlist-item-remove').forEach(btn => {

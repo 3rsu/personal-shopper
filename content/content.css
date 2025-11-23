@@ -56,6 +56,31 @@ img.season-no-match {
   color: white;
 }
 
+/* Price Badge */
+.season-price-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.season-price-badge.price-match {
+  background-color: rgba(16, 185, 129, 0.95);
+  color: white;
+}
+
+.season-price-badge.price-no-match {
+  background-color: rgba(239, 68, 68, 0.95);
+  color: white;
+}
+
 /* Floating Overlay Widget */
 .season-overlay {
   position: fixed;

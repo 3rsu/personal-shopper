@@ -15,6 +15,9 @@
 let storageCache = {
   selectedSeason: null,
   filterEnabled: true,
+  minPrice: null,
+  maxPrice: null,
+  priceFilterEnabled: false,
   wishlist: []
 };
 
@@ -26,7 +29,10 @@ chrome.runtime.onInstalled.addListener((details) => {
     // First-time install: set defaults
     chrome.storage.sync.set({
       selectedSeason: null,  // User must choose
-      filterEnabled: true
+      filterEnabled: true,
+      minPrice: null,
+      maxPrice: null,
+      priceFilterEnabled: false
     });
 
     chrome.storage.local.set({
@@ -46,9 +52,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 /**
  * Load storage cache on startup
  */
-chrome.storage.sync.get(['selectedSeason', 'filterEnabled'], (data) => {
+chrome.storage.sync.get(['selectedSeason', 'filterEnabled', 'minPrice', 'maxPrice', 'priceFilterEnabled'], (data) => {
   storageCache.selectedSeason = data.selectedSeason;
   storageCache.filterEnabled = data.filterEnabled !== false; // Default true
+  storageCache.minPrice = data.minPrice || null;
+  storageCache.maxPrice = data.maxPrice || null;
+  storageCache.priceFilterEnabled = data.priceFilterEnabled || false;
 });
 
 chrome.storage.local.get(['wishlist'], (data) => {
@@ -66,6 +75,15 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.filterEnabled) {
       storageCache.filterEnabled = changes.filterEnabled.newValue;
     }
+    if (changes.minPrice) {
+      storageCache.minPrice = changes.minPrice.newValue;
+    }
+    if (changes.maxPrice) {
+      storageCache.maxPrice = changes.maxPrice.newValue;
+    }
+    if (changes.priceFilterEnabled) {
+      storageCache.priceFilterEnabled = changes.priceFilterEnabled.newValue;
+    }
   } else if (areaName === 'local') {
     if (changes.wishlist) {
       storageCache.wishlist = changes.wishlist.newValue;
@@ -82,7 +100,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getSettings') {
     sendResponse({
       selectedSeason: storageCache.selectedSeason,
-      filterEnabled: storageCache.filterEnabled
+      filterEnabled: storageCache.filterEnabled,
+      minPrice: storageCache.minPrice,
+      maxPrice: storageCache.maxPrice,
+      priceFilterEnabled: storageCache.priceFilterEnabled
     });
     return true;
   }
@@ -128,6 +149,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // Set price filter range
+  if (request.action === 'setPriceFilter') {
+    const { minPrice, maxPrice, enabled } = request;
+
+    chrome.storage.sync.set({
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      priceFilterEnabled: enabled
+    }, () => {
+      storageCache.minPrice = minPrice;
+      storageCache.maxPrice = maxPrice;
+      storageCache.priceFilterEnabled = enabled;
+
+      // Notify all tabs to refresh filter
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+          chrome.tabs.sendMessage(tab.id, {
+            action: 'priceFilterChanged',
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            enabled: enabled
+          }).catch(() => {
+            // Ignore errors for tabs without content script
+          });
+        });
+      });
+
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
   // Add item to wishlist
   if (request.action === 'addToWishlist') {
     const item = {
@@ -136,6 +189,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       pageUrl: request.pageUrl,
       dominantColors: request.dominantColors,
       matchScore: request.matchScore,
+      price: request.price || null,
+      currency: request.currency || '$',
       season: storageCache.selectedSeason,
       dateAdded: new Date().toISOString()
     };
