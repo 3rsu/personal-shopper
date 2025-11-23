@@ -10,6 +10,18 @@
   position: relative;
   display: inline-block;
   transition: opacity 0.3s ease;
+  line-height: 0; /* Prevent extra space below inline-block images */
+  max-width: 100%; /* Don't exceed parent width */
+  width: auto; /* Size to content */
+}
+
+/* Ensure images inside container maintain their original display and sizing */
+.season-filter-container > img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: none !important; /* Override page styles */
+  min-width: 0 !important;
 }
 
 .season-filter-container.season-dimmed {

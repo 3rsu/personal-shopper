@@ -314,13 +314,37 @@
     // Remove existing filter classes
     img.classList.remove('season-match', 'season-no-match');
 
+    // Make the image itself position: relative so badge can be positioned
+    img.style.position = 'relative';
+
     // Add container wrapper if needed
     let container = img.closest('.season-filter-container');
     if (!container) {
-      container = document.createElement('div');
-      container.className = 'season-filter-container';
-      img.parentNode.insertBefore(container, img);
-      container.appendChild(img);
+      // Check if the parent can be used as container
+      const parent = img.parentElement;
+
+      // Try to use parent if it's already position: relative/absolute
+      const parentStyle = window.getComputedStyle(parent);
+      if (parentStyle.position === 'relative' || parentStyle.position === 'absolute') {
+        container = parent;
+        container.classList.add('season-filter-container');
+      } else {
+        // Only wrap if absolutely necessary
+        container = document.createElement('div');
+        container.className = 'season-filter-container';
+
+        // Copy important layout properties from img to container
+        const imgStyle = window.getComputedStyle(img);
+        if (imgStyle.width && imgStyle.width !== 'auto') {
+          container.style.width = imgStyle.width;
+        }
+        if (imgStyle.height && imgStyle.height !== 'auto') {
+          container.style.height = imgStyle.height;
+        }
+
+        img.parentNode.insertBefore(container, img);
+        container.appendChild(img);
+      }
     }
 
     if (matchResult.matches) {
