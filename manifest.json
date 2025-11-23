@@ -1,18 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Season Color Checker",
+  "name": "Shop Your Color: Seasonal Color Filter",
   "version": "1.0.0",
-  "description": "Filter online clothing stores to show only items matching your seasonal color palette",
+  "description": "Automatically highlights items in your seasonal palette so you can shop with confidence.",
 
-  "permissions": [
-    "storage",
-    "activeTab",
-    "scripting"
-  ],
+  "permissions": ["storage", "activeTab", "scripting"],
 
-  "host_permissions": [
-    "*://*/*"
-  ],
+  "host_permissions": ["*://*/*"],
 
   "background": {
     "service_worker": "background/service-worker.js"
@@ -51,11 +45,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": [
-        "icons/*",
-        "content/eyedropper.js",
-        "content/eyedropper.css"
-      ],
+      "resources": ["icons/*", "content/eyedropper.js", "content/eyedropper.css"],
       "matches": ["*://*/*"]
     }
   ]

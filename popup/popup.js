@@ -132,10 +132,10 @@
       });
     });
 
-    // Change season button
+    // Change season button (toggle collapse/expand)
     const changeSeasonBtn = document.getElementById('change-season');
     if (changeSeasonBtn) {
-      changeSeasonBtn.addEventListener('click', showSeasonSelection);
+      changeSeasonBtn.addEventListener('click', toggleSeasonSelection);
     }
 
     // Filter toggle
@@ -174,6 +174,18 @@
       showCurrentSeason();
     } else {
       showSeasonSelection();
+
+      // Auto-disable filter when no season is selected
+      if (currentSettings.filterEnabled) {
+        chrome.runtime.sendMessage({
+          action: 'toggleFilter',
+          enabled: false
+        }, (response) => {
+          if (response) {
+            currentSettings.filterEnabled = false;
+          }
+        });
+      }
     }
 
     // Update filter toggle
@@ -208,9 +220,54 @@
     }, (response) => {
       if (response && response.success) {
         currentSettings.selectedSeason = season;
-        updateUI();
+
+        // Automatically enable filter when a season is selected
+        chrome.runtime.sendMessage({
+          action: 'toggleFilter',
+          enabled: true
+        }, (filterResponse) => {
+          if (filterResponse) {
+            currentSettings.filterEnabled = true;
+            // Update the filter toggle checkbox
+            const filterToggle = document.getElementById('filter-toggle');
+            if (filterToggle) {
+              filterToggle.checked = true;
+            }
+          }
+          updateUI();
+        });
+
+        // Automatically collapse the grid after selection
+        const seasonGrid = document.querySelector('.season-grid');
+        if (seasonGrid) {
+          seasonGrid.classList.add('collapsed');
+        }
       }
     });
+  }
+
+  /**
+   * Toggle season selection UI (expand/collapse)
+   */
+  function toggleSeasonSelection() {
+    const seasonGrid = document.querySelector('.season-grid');
+    const expandIcon = document.querySelector('.expand-icon');
+
+    if (!seasonGrid) return;
+
+    const isCollapsed = seasonGrid.classList.contains('collapsed');
+
+    if (isCollapsed) {
+      // Expand
+      seasonGrid.classList.remove('collapsed');
+      seasonGrid.style.display = 'grid';
+      if (expandIcon) expandIcon.classList.remove('expanded');
+    } else {
+      // Collapse
+      seasonGrid.classList.add('collapsed');
+      seasonGrid.style.display = 'none';
+      if (expandIcon) expandIcon.classList.add('expanded');
+    }
   }
 
   /**
@@ -219,9 +276,14 @@
   function showSeasonSelection() {
     const seasonGrid = document.querySelector('.season-grid');
     const currentSeasonDiv = document.getElementById('current-season');
+    const expandIcon = document.querySelector('.expand-icon');
 
-    if (seasonGrid) seasonGrid.style.display = 'grid';
+    if (seasonGrid) {
+      seasonGrid.classList.remove('collapsed');
+      seasonGrid.style.display = 'grid';
+    }
     if (currentSeasonDiv) currentSeasonDiv.style.display = 'none';
+    if (expandIcon) expandIcon.classList.remove('expanded');
   }
 
   /**
@@ -231,9 +293,14 @@
     const seasonGrid = document.querySelector('.season-grid');
     const currentSeasonDiv = document.getElementById('current-season');
     const currentSeasonName = document.getElementById('current-season-name');
+    const expandIcon = document.querySelector('.expand-icon');
 
-    if (seasonGrid) seasonGrid.style.display = 'none';
+    if (seasonGrid) {
+      seasonGrid.classList.add('collapsed');
+      seasonGrid.style.display = 'none';
+    }
     if (currentSeasonDiv) currentSeasonDiv.style.display = 'flex';
+    if (expandIcon) expandIcon.classList.add('expanded');
 
     if (currentSeasonName && currentSettings.selectedSeason && window.SEASONAL_PALETTES) {
       const season = window.SEASONAL_PALETTES[currentSettings.selectedSeason];

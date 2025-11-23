@@ -27,7 +27,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     // First-time install: set defaults
     chrome.storage.sync.set({
       selectedSeason: null,  // User must choose
-      filterEnabled: true
+      filterEnabled: false  // Off until user selects a season
     });
 
     chrome.storage.local.set({
@@ -116,7 +116,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Toggle filter on/off
   if (request.action === 'toggleFilter') {
-    const newState = !storageCache.filterEnabled;
+    // If enabled parameter is provided, use it; otherwise toggle
+    const newState = request.enabled !== undefined ? request.enabled : !storageCache.filterEnabled;
     chrome.storage.sync.set({ filterEnabled: newState }, () => {
       storageCache.filterEnabled = newState;
 

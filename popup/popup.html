@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Season Color Checker</title>
+    <title>Shop your Color</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -19,10 +19,16 @@
     <div class="content">
       <!-- Season Selection Section -->
       <section class="section" id="season-selection">
-        <h2 class="section-title">Your Seasonal Palette</h2>
-        <p class="section-description">
-          Select your seasonal color palette to start filtering clothing items.
-        </p>
+        <div class="section-header">
+          <div class="section-header-text">
+            <h2 class="section-title">Your Seasonal Palette</h2>
+            <p class="section-description">What is your season color palette?</p>
+          </div>
+          <label class="toggle-switch" title="Auto-filter products">
+            <input type="checkbox" id="filter-toggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
 
         <div class="season-grid" id="season-grid">
           <!-- Season cards will be dynamically generated from seasonal-palettes.js -->
@@ -30,10 +36,13 @@
 
         <div class="current-season" id="current-season" style="display: none">
           <div class="current-season-info">
-            <span class="current-season-label">Current:</span>
+            <span class="current-season-label">Your Season:</span>
             <span class="current-season-name" id="current-season-name"></span>
           </div>
-          <button class="btn btn-secondary btn-sm" id="change-season">Change</button>
+          <button class="btn-change" id="change-season">
+            Change
+            <!-- <span class="expand-icon">▼</span> -->
+          </button>
         </div>
       </section>
 
@@ -79,22 +88,6 @@
         </div>
 
         <div id="wishlist-items" class="wishlist-grid"></div>
-      </section>
-
-      <!-- Filter Toggle -->
-      <section class="section">
-        <div class="toggle-container">
-          <div class="toggle-info">
-            <h3 class="toggle-title">Auto-filter products</h3>
-            <p class="toggle-description">
-              Automatically highlight matching items on shopping sites
-            </p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="filter-toggle" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
       </section>
     </div>
 
