@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Season Color Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1 class="title">
+      <span class="icon">🎨</span>
+      Season Color Checker
+    </h1>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content">
+
+    <!-- Season Selection Section -->
+    <section class="section" id="season-selection">
+      <h2 class="section-title">Your Seasonal Palette</h2>
+      <p class="section-description">
+        Select your seasonal color palette to start filtering clothing items.
+      </p>
+
+      <div class="season-grid">
+        <button class="season-card" data-season="spring">
+          <div class="season-card-header">
+            <span class="season-emoji">🌸</span>
+            <h3>Spring</h3>
+          </div>
+          <p class="season-desc">Warm, clear, bright</p>
+          <div class="season-colors">
+            <span class="color-dot" style="background: #FFE5B4"></span>
+            <span class="color-dot" style="background: #FFB6C1"></span>
+            <span class="color-dot" style="background: #FFD700"></span>
+            <span class="color-dot" style="background: #87CEEB"></span>
+            <span class="color-dot" style="background: #98FB98"></span>
+          </div>
+        </button>
+
+        <button class="season-card" data-season="summer">
+          <div class="season-card-header">
+            <span class="season-emoji">🌊</span>
+            <h3>Summer</h3>
+          </div>
+          <p class="season-desc">Cool, soft, muted</p>
+          <div class="season-colors">
+            <span class="color-dot" style="background: #E6E6FA"></span>
+            <span class="color-dot" style="background: #B0C4DE"></span>
+            <span class="color-dot" style="background: #DDA0DD"></span>
+            <span class="color-dot" style="background: #AFEEEE"></span>
+            <span class="color-dot" style="background: #F5F5DC"></span>
+          </div>
+        </button>
+
+        <button class="season-card" data-season="autumn">
+          <div class="season-card-header">
+            <span class="season-emoji">🍂</span>
+            <h3>Autumn</h3>
+          </div>
+          <p class="season-desc">Warm, rich, earthy</p>
+          <div class="season-colors">
+            <span class="color-dot" style="background: #8B4513"></span>
+            <span class="color-dot" style="background: #D2691E"></span>
+            <span class="color-dot" style="background: #DAA520"></span>
+            <span class="color-dot" style="background: #6B8E23"></span>
+            <span class="color-dot" style="background: #BC8F8F"></span>
+          </div>
+        </button>
+
+        <button class="season-card" data-season="winter">
+          <div class="season-card-header">
+            <span class="season-emoji">❄️</span>
+            <h3>Winter</h3>
+          </div>
+          <p class="season-desc">Cool, clear, vivid</p>
+          <div class="season-colors">
+            <span class="color-dot" style="background: #000000"></span>
+            <span class="color-dot" style="background: #FFFFFF; border: 1px solid #e5e7eb"></span>
+            <span class="color-dot" style="background: #FF0000"></span>
+            <span class="color-dot" style="background: #0000FF"></span>
+            <span class="color-dot" style="background: #FF00FF"></span>
+          </div>
+        </button>
+      </div>
+
+      <div class="current-season" id="current-season" style="display: none;">
+        <div class="current-season-info">
+          <span class="current-season-label">Current:</span>
+          <span class="current-season-name" id="current-season-name"></span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="change-season">Change</button>
+      </div>
+    </section>
+
+    <!-- Wishlist Section -->
+    <section class="section" id="wishlist-section">
+      <div class="section-header">
+        <h2 class="section-title">Wishlist</h2>
+        <button class="btn btn-text btn-sm" id="clear-wishlist">Clear All</button>
+      </div>
+
+      <div id="wishlist-empty" class="empty-state">
+        <span class="empty-icon">💝</span>
+        <p>No saved items yet</p>
+        <p class="empty-hint">Click on matching items while browsing to add them here</p>
+      </div>
+
+      <div id="wishlist-items" class="wishlist-grid"></div>
+    </section>
+
+    <!-- Filter Toggle -->
+    <section class="section">
+      <div class="toggle-container">
+        <div class="toggle-info">
+          <h3 class="toggle-title">Auto-filter products</h3>
+          <p class="toggle-description">Automatically highlight matching items on shopping sites</p>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="filter-toggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p class="footer-text">
+      Season Color Checker v1.0
+    </p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

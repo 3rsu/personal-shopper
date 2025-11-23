@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Season Color Checker - Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      color: #667eea;
+    }
+    .instructions {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .product {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .product img {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .product-name {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .product-price {
+      color: #667eea;
+      font-size: 1.2em;
+      margin-top: 5px;
+    }
+    .color-label {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Season Color Checker Test Page</h1>
+
+  <div class="instructions">
+    <h2>How to Test:</h2>
+    <ol>
+      <li>Load the Season Color Checker extension in Chrome</li>
+      <li>Click the extension icon and select a seasonal palette (try <strong>Spring</strong>)</li>
+      <li>Refresh this page</li>
+      <li>You should see:
+        <ul>
+          <li>✅ Green borders on items matching your palette</li>
+          <li>❌ Dimmed items that don't match</li>
+          <li>📊 Floating widget showing match stats</li>
+          <li>Console logs in DevTools (F12)</li>
+        </ul>
+      </li>
+    </ol>
+    <p><strong>For Spring palette:</strong> Peach, coral, and pastel items should match. Dark/earthy colors should be dimmed.</p>
+  </div>
+
+  <div class="products">
+
+    <!-- Spring-matching items (should show green border) -->
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FFB6C1/FFFFFF?text=Light+Pink+Dress" alt="Light Pink Dress">
+      <div class="product-name">Light Pink Dress</div>
+      <div class="product-price">$49.99</div>
+      <div class="color-label">Color: Light Pink (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FFE5B4/000000?text=Peach+Top" alt="Peach Top">
+      <div class="product-name">Peach Blouse</div>
+      <div class="product-price">$39.99</div>
+      <div class="color-label">Color: Peach (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/87CEEB/000000?text=Sky+Blue+Shirt" alt="Sky Blue Shirt">
+      <div class="product-name">Sky Blue Shirt</div>
+      <div class="product-price">$34.99</div>
+      <div class="color-label">Color: Sky Blue (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FFD700/000000?text=Golden+Skirt" alt="Golden Skirt">
+      <div class="product-name">Golden Yellow Skirt</div>
+      <div class="product-price">$44.99</div>
+      <div class="color-label">Color: Golden Yellow (Spring)</div>
+    </div>
+
+    <!-- Non-matching items (should be dimmed) -->
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/8B4513/FFFFFF?text=Brown+Jacket" alt="Brown Jacket">
+      <div class="product-name">Brown Jacket</div>
+      <div class="product-price">$79.99</div>
+      <div class="color-label">Color: Saddle Brown (Autumn)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/000000/FFFFFF?text=Black+Pants" alt="Black Pants">
+      <div class="product-name">Black Pants</div>
+      <div class="product-price">$54.99</div>
+      <div class="color-label">Color: Black (Winter)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/4B0082/FFFFFF?text=Indigo+Coat" alt="Indigo Coat">
+      <div class="product-name">Indigo Coat</div>
+      <div class="product-price">$99.99</div>
+      <div class="color-label">Color: Indigo (Winter)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/556B2F/FFFFFF?text=Olive+Sweater" alt="Olive Sweater">
+      <div class="product-name">Olive Sweater</div>
+      <div class="product-price">$59.99</div>
+      <div class="color-label">Color: Olive (Autumn)</div>
+    </div>
+
+    <!-- Mixed colors (test multi-color matching) -->
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FFB6C1,87CEEB,FFD700/000000?text=Pastel+Mix" alt="Pastel Mix">
+      <div class="product-name">Pastel Floral Dress</div>
+      <div class="product-price">$69.99</div>
+      <div class="color-label">Colors: Pink, Blue, Yellow (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/98FB98/000000?text=Pale+Green" alt="Pale Green">
+      <div class="product-name">Pale Green Cardigan</div>
+      <div class="product-price">$44.99</div>
+      <div class="color-label">Color: Pale Green (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FF6347/FFFFFF?text=Coral+Top" alt="Coral Top">
+      <div class="product-name">Coral Summer Top</div>
+      <div class="product-price">$29.99</div>
+      <div class="color-label">Color: Coral (Spring)</div>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/300x300/FFDAB9/000000?text=Peach+Puff" alt="Peach Puff">
+      <div class="product-name">Peach Sundress</div>
+      <div class="product-price">$54.99</div>
+      <div class="color-label">Color: Peach Puff (Spring)</div>
+    </div>
+
+  </div>
+
+  <div class="instructions" style="margin-top: 30px;">
+    <h2>Debugging:</h2>
+    <p><strong>Open DevTools (F12)</strong> and check the Console tab for messages like:</p>
+    <ul>
+      <li><code>[Season Color Checker] Initializing...</code></li>
+      <li><code>[Season Color Checker] ColorThief available: true</code></li>
+      <li><code>[Season Color Checker] Settings loaded: {selectedSeason: "spring", filterEnabled: true}</code></li>
+      <li><code>[Season Color Checker] Found X product images to analyze</code></li>
+    </ul>
+    <p>If you don't see these messages, the extension isn't loading properly.</p>
+
+    <h3>Expected Results (Spring Palette):</h3>
+    <ul>
+      <li>✅ <strong>Should match (green border):</strong> Light Pink, Peach, Sky Blue, Golden Yellow, Pale Green, Coral, Pastel Mix, Peach Puff</li>
+      <li>❌ <strong>Should NOT match (dimmed):</strong> Brown, Black, Indigo, Olive</li>
+    </ul>
+  </div>
+
+  <script>
+    // Add some console logging for debugging
+    console.log('%c🎨 Season Color Checker Test Page Loaded', 'color: #667eea; font-size: 16px; font-weight: bold;');
+    console.log('Total images on page:', document.querySelectorAll('img').length);
+    console.log('Images with product class:', document.querySelectorAll('.product img').length);
+
+    // Wait a bit and check if extension applied classes
+    setTimeout(() => {
+      const matchingImages = document.querySelectorAll('img.season-match').length;
+      const nonMatchingImages = document.querySelectorAll('img.season-no-match').length;
+
+      if (matchingImages > 0 || nonMatchingImages > 0) {
+        console.log('%c✅ Extension is working!', 'color: green; font-size: 14px; font-weight: bold;');
+        console.log('Matching images:', matchingImages);
+        console.log('Non-matching images:', nonMatchingImages);
+      } else {
+        console.log('%c⚠️ Extension may not be working', 'color: orange; font-size: 14px; font-weight: bold;');
+        console.log('Check that you:');
+        console.log('1. Loaded the extension');
+        console.log('2. Selected a season in the popup');
+        console.log('3. Refreshed this page');
+      }
+    }, 3000);
+  </script>
+
+</body>
+</html>

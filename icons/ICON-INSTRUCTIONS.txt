@@ -1,0 +1,35 @@
+ICON CREATION INSTRUCTIONS
+===========================
+
+You need to create 3 icon files in PNG format:
+- icon16.png (16x16 pixels)
+- icon48.png (48x48 pixels)
+- icon128.png (128x128 pixels)
+
+METHODS TO CREATE ICONS:
+
+1. ONLINE ICON GENERATORS (Easiest):
+   - Visit: https://www.favicon-generator.org/
+   - Upload a square image (512x512 recommended)
+   - Download the generated icons
+   - Rename them to icon16.png, icon48.png, icon128.png
+
+2. USING DESIGN TOOLS:
+   - Canva (free): https://www.canva.com/
+   - Figma (free): https://www.figma.com/
+   - Create a 512x512 canvas
+   - Design your icon (palette symbol 🎨 or clothes hanger)
+   - Export as PNG at different sizes
+
+3. EMOJI TO ICON (Quick):
+   - Visit: https://favicon.io/emoji-favicons/
+   - Choose palette emoji 🎨
+   - Download and resize to required sizes
+
+DESIGN RECOMMENDATIONS:
+- Use purple gradient colors (#667eea to #764ba2) to match the extension theme
+- Include a palette or color swatch symbol
+- Keep it simple and recognizable at small sizes
+- Ensure good contrast for visibility
+
+After creating icons, replace the placeholder .txt files in this directory.

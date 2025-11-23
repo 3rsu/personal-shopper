@@ -1,0 +1,22 @@
+TO CREATE PNG ICONS FROM THE SVG:
+
+Option 1 - Online converter (Easiest):
+1. Visit: https://cloudconvert.com/svg-to-png
+2. Upload icon.svg
+3. Convert to PNG at these sizes:
+   - 16x16 → save as icon16.png
+   - 48x48 → save as icon48.png
+   - 128x128 → save as icon128.png
+
+Option 2 - Using command line (if you have ImageMagick):
+convert -background none icon.svg -resize 16x16 icon16.png
+convert -background none icon.svg -resize 48x48 icon48.png
+convert -background none icon.svg -resize 128x128 icon128.png
+
+Option 3 - Using Inkscape:
+inkscape icon.svg --export-png=icon16.png -w 16 -h 16
+inkscape icon.svg --export-png=icon48.png -w 48 -h 48
+inkscape icon.svg --export-png=icon128.png -w 128 -h 128
+
+For now, you can rename icon.svg to the PNG files to test the extension
+(some browsers will accept SVG, but PNG is recommended)

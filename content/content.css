@@ -1,0 +1,241 @@
+/**
+ * CONTENT STYLES
+ *
+ * Styles for the filtering overlay and visual effects on product images.
+ * Injected into all web pages where the extension runs.
+ */
+
+/* Filter Container */
+.season-filter-container {
+  position: relative;
+  display: inline-block;
+  transition: opacity 0.3s ease;
+}
+
+.season-filter-container.season-dimmed {
+  opacity: 0.35;
+}
+
+/* Product Image States */
+img.season-match {
+  border: 3px solid #10b981 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
+  border-radius: 4px !important;
+}
+
+img.season-no-match {
+  /* Dimmed by parent container */
+  filter: grayscale(30%);
+}
+
+/* Match Badge */
+.season-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.season-badge.match {
+  background-color: #10b981;
+  color: white;
+}
+
+.season-badge.no-match {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Floating Overlay Widget */
+.season-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 280px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 2147483647; /* Maximum z-index */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.season-overlay.minimized {
+  min-width: auto;
+}
+
+/* Overlay Header */
+.season-overlay-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  cursor: move;
+  user-select: none;
+}
+
+.season-overlay-icon {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.season-overlay-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.season-overlay-minimize,
+.season-overlay-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  transition: background 0.2s;
+}
+
+.season-overlay-minimize:hover,
+.season-overlay-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Overlay Content */
+.season-overlay-content {
+  padding: 16px;
+}
+
+.season-overlay-stats {
+  margin-bottom: 16px;
+}
+
+.stat-line {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stat-icon {
+  font-size: 20px;
+  margin-right: 8px;
+  color: #10b981;
+}
+
+.stat-text {
+  font-size: 14px;
+  color: #374151;
+}
+
+.stat-text strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.season-name {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+  padding-left: 28px;
+}
+
+/* Overlay Actions */
+.season-overlay-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.season-overlay-actions button {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.season-overlay-actions button:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-toggle-filter {
+  background: #ef4444 !important;
+  color: white !important;
+  border-color: #ef4444 !important;
+}
+
+.btn-toggle-filter:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.btn-open-popup {
+  background: #667eea !important;
+  color: white !important;
+  border-color: #667eea !important;
+}
+
+.btn-open-popup:hover {
+  background: #5568d3 !important;
+  border-color: #5568d3 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .season-overlay {
+    top: 10px;
+    right: 10px;
+    min-width: 240px;
+  }
+}
+
+/* Animation for new badges */
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.season-badge {
+  animation: badgePop 0.3s ease-out;
+}
+
+/* Smooth transitions for filtering */
+.season-filter-container,
+img.season-match,
+img.season-no-match {
+  transition: all 0.3s ease;
+}
