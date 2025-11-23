@@ -446,6 +446,49 @@ input:checked + .toggle-slider:before {
   transform: translateX(22px);
 }
 
+/* Custom Tooltip */
+.toggle-switch[data-tooltip] {
+  position: relative;
+}
+
+.toggle-switch[data-tooltip]:before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #3a3a3a;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Arial';
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.toggle-switch[data-tooltip]:after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  right: 12px;
+  border: 6px solid transparent;
+  border-top-color: #3a3a3a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.toggle-switch[data-tooltip]:hover:before,
+.toggle-switch[data-tooltip]:hover:after {
+  opacity: 1;
+  transition-delay: 0s;
+}
+
 /* Footer */
 .footer {
   padding: 12px;
@@ -517,8 +560,8 @@ body::-webkit-scrollbar-thumb:hover {
 
 .btn-primary {
   width: 100%;
-  background: linear-gradient(135deg, #a9d4c0 0%, #8cb5a0 100%);
-  color: #1a3a2e;
+  background: #2e2a27;
+  color: white;
   padding: 11px 20px;
   font-size: 13px;
   font-weight: 600;
@@ -532,7 +575,8 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #8cb5a0 0%, #6a9580 100%);
+  background: #2e2a27;
+  color: white;
   transform: translateY(-1px);
   box-shadow: 0 3px 12px rgba(169, 212, 192, 0.3);
 }
