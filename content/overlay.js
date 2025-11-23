@@ -1,20 +1,26 @@
 /**
  * OVERLAY WIDGET
  *
- * Floating widget that shows filter statistics and controls.
- * Displays: "✓ 12 of 45 items match your Spring palette"
+ * Simplified floating widget with essential controls:
+ * - Stats display
+ * - Eyedropper color picker
+ * - Highlight toggle
  */
 
 (function () {
   'use strict';
 
   let overlayElement = null;
-  let isMinimized = false;
+  let highlightEnabled = true;
+  let lastPickedColor = null;
+  let currentSettings = null;
 
   /**
    * Initialize the overlay widget
    */
   window.initializeOverlay = function (stats, settings) {
+    currentSettings = settings;
+
     if (overlayElement) {
       overlayElement.remove();
     }
@@ -24,6 +30,9 @@
 
     // Make draggable
     makeDraggable(overlayElement);
+
+    // Load last picked color from storage
+    loadLastPickedColor();
   };
 
   /**
@@ -34,46 +43,48 @@
     overlay.id = 'season-color-overlay';
     overlay.className = 'season-overlay';
 
-    // Get season info for initial title
-    let seasonTitle = '';
-    if (settings && settings.selectedSeason) {
-      const palette = SEASONAL_PALETTES[settings.selectedSeason];
-      if (palette) {
-        seasonTitle = `${palette.name} Palette`;
-      }
-    }
-
     overlay.innerHTML = `
       <div class="season-overlay-header">
         <img src="${chrome.runtime.getURL(
           'icons/blob.png',
         )}" class="season-overlay-icon" alt="Season icon">
-        <div class="season-name"></div>
-        <button class="season-overlay-minimize" title="Minimize">−</button>
+        <div class="stat-line">
+          <span class="stat-text">
+            <strong class="match-count">0</strong> of
+            <strong class="total-count">0</strong> match
+          </span>
+        </div>
         <button class="season-overlay-close" title="Close">×</button>
       </div>
       <div class="season-overlay-content">
-        <div class="season-overlay-stats">
-          <div class="stat-line">
-            <span class="stat-icon">✓</span>
-            <span class="stat-text">
-              <strong class="match-count">0</strong> of
-              <strong class="total-count">0</strong> items match
-            </span>
+        <button class="btn-eyedropper">
+          🎨 Pick a Color
+        </button>
+
+        <div class="last-color-display" style="display: none;">
+          <div class="color-swatch-container">
+            <div class="color-swatch"></div>
+            <div class="color-info">
+              <div class="color-hex"></div>
+              <div class="color-match"></div>
+            </div>
           </div>
         </div>
-        <div class="season-overlay-actions">
-          <button class="btn-toggle-filter">Turn Off</button>
-          <button class="btn-open-popup">Settings</button>
+
+        <div class="highlight-toggle-container">
+          <label class="toggle-label">
+            <input type="checkbox" class="highlight-toggle" checked>
+            <span class="toggle-switch"></span>
+            <span class="toggle-text">Highlight products</span>
+          </label>
         </div>
       </div>
     `;
 
     // Event listeners
     overlay.querySelector('.season-overlay-close').addEventListener('click', hideOverlay);
-    overlay.querySelector('.season-overlay-minimize').addEventListener('click', toggleMinimize);
-    overlay.querySelector('.btn-toggle-filter').addEventListener('click', toggleFilter);
-    overlay.querySelector('.btn-open-popup').addEventListener('click', openPopup);
+    overlay.querySelector('.btn-eyedropper').addEventListener('click', activateEyedropper);
+    overlay.querySelector('.highlight-toggle').addEventListener('change', toggleHighlights);
 
     return overlay;
   }
@@ -84,34 +95,49 @@
   window.updateOverlay = function (stats, settings) {
     if (!overlayElement) return;
 
+    currentSettings = settings;
+
     const matchCount = overlayElement.querySelector('.match-count');
     const totalCount = overlayElement.querySelector('.total-count');
-    const seasonName = overlayElement.querySelector('.season-name');
 
     if (matchCount) matchCount.textContent = stats.matchingImages || 0;
     if (totalCount) totalCount.textContent = stats.totalImages || 0;
-
-    if (seasonName && settings.selectedSeason) {
-      const palette = SEASONAL_PALETTES[settings.selectedSeason];
-      if (palette) {
-        seasonName.textContent = `${palette.emoji || ''} ${palette.name} Palette`;
-        seasonName.title = `${palette.name} Palette`;
-      } else {
-        seasonName.textContent = 'Season Palette (Please reselect)';
-      }
-    }
-
-    // Update toggle button text
-    const toggleBtn = overlayElement.querySelector('.btn-toggle-filter');
-    if (toggleBtn) {
-      toggleBtn.textContent = settings.filterEnabled ? 'Turn Off' : 'Turn On';
-    }
-
-    // Show overlay if hidden and filter is on
-    if (settings.filterEnabled && overlayElement.style.display === 'none') {
-      overlayElement.style.display = 'block';
-    }
   };
+
+  /**
+   * Load last picked color from storage
+   */
+  function loadLastPickedColor() {
+    chrome.storage.local.get(['colorHistory'], (result) => {
+      if (result.colorHistory && result.colorHistory.length > 0) {
+        lastPickedColor = result.colorHistory[0];
+        updateLastColorDisplay();
+      }
+    });
+  }
+
+  /**
+   * Update last picked color display
+   */
+  function updateLastColorDisplay() {
+    if (!overlayElement || !lastPickedColor) return;
+
+    const display = overlayElement.querySelector('.last-color-display');
+    const swatch = overlayElement.querySelector('.color-swatch');
+    const hex = overlayElement.querySelector('.color-hex');
+    const match = overlayElement.querySelector('.color-match');
+
+    if (display && swatch && hex && match) {
+      swatch.style.background = lastPickedColor.hex;
+      hex.textContent = lastPickedColor.hex;
+
+      const matchText = lastPickedColor.match ? `✓ ΔE ${lastPickedColor.distance}` : `✗ ΔE ${lastPickedColor.distance}`;
+      match.textContent = matchText;
+      match.className = 'color-match ' + (lastPickedColor.match ? 'match' : 'no-match');
+
+      display.style.display = 'block';
+    }
+  }
 
   /**
    * Hide overlay
@@ -123,44 +149,45 @@
   }
 
   /**
-   * Toggle minimize/maximize
+   * Activate eyedropper tool
    */
-  function toggleMinimize() {
-    isMinimized = !isMinimized;
-
-    const content = overlayElement.querySelector('.season-overlay-content');
-    const minimizeBtn = overlayElement.querySelector('.season-overlay-minimize');
-
-    if (isMinimized) {
-      content.style.display = 'none';
-      minimizeBtn.textContent = '+';
-      minimizeBtn.title = 'Maximize';
-      overlayElement.classList.add('minimized');
-    } else {
-      content.style.display = 'block';
-      minimizeBtn.textContent = '−';
-      minimizeBtn.title = 'Minimize';
-      overlayElement.classList.remove('minimized');
+  function activateEyedropper() {
+    if (!currentSettings || !currentSettings.selectedSeason) {
+      alert('Please select a season palette first');
+      return;
     }
+
+    // Dispatch event to trigger eyedropper in eyedropper.js content script
+    const event = new CustomEvent('activateEyedropper', {
+      detail: { season: currentSettings.selectedSeason }
+    });
+    document.dispatchEvent(event);
+
+    // The eyedropper.js content script will handle the actual activation
+    // and we'll update the display when color history changes
+    setTimeout(loadLastPickedColor, 1000);
   }
 
   /**
-   * Toggle filter on/off
+   * Toggle highlights on/off
    */
-  function toggleFilter() {
-    chrome.runtime.sendMessage({ action: 'toggleFilter' }, (response) => {
-      if (response) {
-        const toggleBtn = overlayElement.querySelector('.btn-toggle-filter');
-        toggleBtn.textContent = response.enabled ? 'Turn Off' : 'Turn On';
+  function toggleHighlights(e) {
+    highlightEnabled = e.target.checked;
+
+    // Send message to content script to toggle highlights
+    chrome.runtime.sendMessage({
+      action: 'toggleHighlights',
+      enabled: highlightEnabled
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to toggle highlights:', chrome.runtime.lastError);
       }
     });
-  }
 
-  /**
-   * Open extension popup
-   */
-  function openPopup() {
-    chrome.runtime.sendMessage({ action: 'openPopup' });
+    // Also dispatch custom event for content.js to listen to
+    document.dispatchEvent(new CustomEvent('seasonFilterToggleHighlights', {
+      detail: { enabled: highlightEnabled }
+    }));
   }
 
   /**
@@ -207,4 +234,11 @@
       isDragging = false;
     }
   }
+
+  // Listen for color history updates
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.colorHistory) {
+      loadLastPickedColor();
+    }
+  });
 })();

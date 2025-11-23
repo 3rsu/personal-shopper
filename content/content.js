@@ -99,8 +99,31 @@
       sendResponse({ success: true });
     }
 
+    if (request.action === 'toggleHighlights') {
+      toggleHighlights(request.enabled);
+      sendResponse({ success: true });
+    }
+
     return true;
   }
+
+  /**
+   * Toggle highlights visibility (without disabling filter)
+   */
+  function toggleHighlights(enabled) {
+    const body = document.body;
+
+    if (enabled) {
+      body.classList.remove('season-highlights-hidden');
+    } else {
+      body.classList.add('season-highlights-hidden');
+    }
+  }
+
+  // Listen for custom events from overlay
+  document.addEventListener('seasonFilterToggleHighlights', (e) => {
+    toggleHighlights(e.detail.enabled);
+  });
 
   /**
    * Start the filtering process
@@ -463,16 +486,39 @@
     if (confirm('Add this item to your wishlist?')) {
       const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
       const matchScore = parseInt(img.dataset.matchScore || '0');
+      const imageUrl = img.src;
 
+      // Fetch image as data URL to avoid CORS issues in popup
       chrome.runtime.sendMessage({
-        action: 'addToWishlist',
-        imageUrl: img.src,
-        pageUrl: window.location.href,
-        dominantColors: dominantColors,
-        matchScore: matchScore
-      }, (response) => {
-        if (response && response.success) {
-          alert('Added to wishlist!');
+        action: 'fetchImage',
+        url: imageUrl
+      }, (fetchResponse) => {
+        if (fetchResponse && fetchResponse.success) {
+          // Now add to wishlist with data URL
+          chrome.runtime.sendMessage({
+            action: 'addToWishlist',
+            imageUrl: fetchResponse.dataUrl,
+            pageUrl: window.location.href,
+            dominantColors: dominantColors,
+            matchScore: matchScore
+          }, (response) => {
+            if (response && response.success) {
+              alert('Added to wishlist!');
+            }
+          });
+        } else {
+          // Fallback to original URL if fetch fails
+          chrome.runtime.sendMessage({
+            action: 'addToWishlist',
+            imageUrl: imageUrl,
+            pageUrl: window.location.href,
+            dominantColors: dominantColors,
+            matchScore: matchScore
+          }, (response) => {
+            if (response && response.success) {
+              alert('Added to wishlist!');
+            }
+          });
         }
       });
     }

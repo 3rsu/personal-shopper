@@ -335,6 +335,13 @@
     }
   });
 
+  // Listen for activation event from overlay widget
+  document.addEventListener('activateEyedropper', (event) => {
+    if (event.detail && event.detail.season) {
+      activateEyedropper(event.detail.season);
+    }
+  });
+
   console.log('[Eyedropper] Content script loaded and ready');
 
 })();

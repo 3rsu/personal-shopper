@@ -106,7 +106,7 @@ img.season-no-match:hover {
   position: fixed;
   top: 20px;
   right: 20px;
-  min-width: 280px;
+  width: 280px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -117,81 +117,32 @@ img.season-no-match:hover {
   color: #1f2937;
 }
 
-.season-overlay.minimized {
-  min-width: auto;
-}
-
 /* Overlay Header */
 .season-overlay-header {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
-  color: white;
+  background: white;
   border-radius: 12px 12px 0 0;
   cursor: move;
   user-select: none;
 }
 
 .season-overlay-icon {
-  font-size: 18px;
-  margin-right: 8px;
   height: 32px;
   width: 32px;
-}
-
-.season-overlay-title {
-  flex: 1;
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.season-overlay-minimize,
-.season-overlay-close {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 6px;
-  transition: background 0.2s;
-}
-
-.season-overlay-minimize:hover,
-.season-overlay-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Overlay Content */
-.season-overlay-content {
-  padding: 16px;
-}
-
-.season-overlay-stats {
-  margin-bottom: 16px;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .stat-line {
+  flex: 1;
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
-}
-
-.stat-icon {
-  font-size: 20px;
-  margin-right: 8px;
-  color: #10b981;
 }
 
 .stat-text {
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
 }
 
@@ -200,57 +151,165 @@ img.season-no-match:hover {
   font-weight: 600;
 }
 
-.season-name {
-  font-size: 13px;
-  color: #6b7280;
-  margin-top: 4px;
-  padding-left: 28px;
-}
-
-/* Overlay Actions */
-.season-overlay-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.season-overlay-actions button {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  color: #374151;
-  border-radius: 6px;
+.season-overlay-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.season-overlay-actions button:hover {
+.season-overlay-close:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+/* Overlay Content */
+.season-overlay-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Eyedropper Button */
+.btn-eyedropper {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+}
+
+.btn-eyedropper:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.btn-eyedropper:active {
+  transform: translateY(0);
+}
+
+/* Last Picked Color Display */
+.last-color-display {
+  padding: 12px;
   background: #f9fafb;
-  border-color: #d1d5db;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
 }
 
-.btn-toggle-filter {
-  background: #ef4444 !important;
-  color: white !important;
-  border-color: #ef4444 !important;
+.color-swatch-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.btn-toggle-filter:hover {
-  background: #dc2626 !important;
-  border-color: #dc2626 !important;
+.color-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
-.btn-open-popup {
-  background: #667eea !important;
-  color: white !important;
-  border-color: #667eea !important;
+.color-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.btn-open-popup:hover {
-  background: #5568d3 !important;
-  border-color: #5568d3 !important;
+.color-hex {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'Monaco', 'Courier New', monospace;
+  margin-bottom: 4px;
+}
+
+.color-match {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.color-match.match {
+  color: #10b981;
+}
+
+.color-match.no-match {
+  color: #ef4444;
+}
+
+/* Highlight Toggle */
+.highlight-toggle-container {
+  padding: 10px 0;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.highlight-toggle {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 12px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.highlight-toggle:checked + .toggle-switch {
+  background: #667eea;
+}
+
+.highlight-toggle:checked + .toggle-switch::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
 }
 
 /* Responsive adjustments */
@@ -286,4 +345,22 @@ img.season-no-match:hover {
 img.season-match,
 img.season-no-match {
   transition: all 0.3s ease;
+}
+
+/* Hide highlights when toggle is off */
+body.season-highlights-hidden img.season-match {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+body.season-highlights-hidden .season-filter-container.season-dimmed {
+  opacity: 1 !important;
+}
+
+body.season-highlights-hidden img.season-no-match {
+  filter: none !important;
+}
+
+body.season-highlights-hidden .season-badge {
+  display: none !important;
 }
