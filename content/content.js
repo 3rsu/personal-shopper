@@ -18,7 +18,7 @@
   };
 
   let colorProcessor = null;
-  let processedImages = new Set(); // Track which images we've analyzed
+  let processedImages = new WeakSet(); // Track actual image elements we've analyzed
   let stats = {
     totalImages: 0,
     matchingImages: 0
@@ -131,7 +131,7 @@
     console.log('[Season Color Checker] Found', images.length, 'product images to analyze');
 
     images.forEach(img => {
-      if (!processedImages.has(img.src)) {
+      if (!processedImages.has(img)) {
         processImage(img);
       }
     });
@@ -147,49 +147,43 @@
     const allImages = document.querySelectorAll('img');
     const productImages = [];
 
-    // Site-specific selectors for major e-commerce platforms
-    const siteSelectors = {
-      // Amazon
-      'amazon.com': '.s-image, .a-dynamic-image, img[data-a-image-name="productImage"]',
-      // Shopify stores
-      'shopify': '.product-card__image, .grid-product__image',
-      // Generic
-      'generic': 'img[alt*="product" i], img[class*="product" i]'
-    };
-
-    // Try site-specific selector first
-    const hostname = window.location.hostname;
-    let selector = siteSelectors.generic;
-
-    if (hostname.includes('amazon')) {
-      selector = siteSelectors['amazon.com'];
-    } else if (document.querySelector('[data-shopify]') || hostname.includes('myshopify')) {
-      selector = siteSelectors['shopify'];
-    }
-
-    // Try site-specific selector
-    const siteSpecificImages = document.querySelectorAll(selector);
-    if (siteSpecificImages.length > 0) {
-      return Array.from(siteSpecificImages);
-    }
-
-    // Fallback: Generic detection based on image size and position
+    // Apply smart filtering to all images on the page
     allImages.forEach(img => {
-      // Skip if too small (likely icon or thumbnail)
-      if (img.naturalWidth < 100 || img.naturalHeight < 100) {
-        return;
-      }
-
-      // Skip if not visible
-      if (img.offsetParent === null) {
-        return;
-      }
-
-      // Skip common UI elements
+      // Skip common UI elements (logos, icons, social media buttons)
       const src = img.src.toLowerCase();
       const alt = (img.alt || '').toLowerCase();
-      if (src.includes('logo') || src.includes('icon') ||
-          alt.includes('logo') || alt.includes('icon')) {
+      const className = (img.className || '').toLowerCase();
+
+      // Skip logos and icons by src, alt, or class
+      if (src.includes('logo') || src.includes('icon') || src.includes('sprite') ||
+          alt.includes('logo') || alt.includes('icon') ||
+          className.includes('logo') || className.includes('icon')) {
+        return;
+      }
+
+      // Skip social media and UI elements
+      if (src.includes('facebook') || src.includes('twitter') || src.includes('instagram') ||
+          src.includes('pinterest') || src.includes('social') ||
+          className.includes('social')) {
+        return;
+      }
+
+      // For loaded images, check size immediately
+      if (img.complete) {
+        // Skip if too small (likely icon, thumbnail, or UI element)
+        if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+          return;
+        }
+      }
+      // For unloaded images, include them - size will be checked in processImage()
+
+      // Skip if completely hidden
+      if (img.offsetParent === null && img.style.display === 'none') {
+        return;
+      }
+
+      // Skip if the image has no src (placeholder or broken)
+      if (!img.src || img.src === '' || img.src === window.location.href) {
         return;
       }
 
@@ -203,8 +197,8 @@
    * Process a single image
    */
   async function processImage(img) {
-    // Mark as processed
-    processedImages.add(img.src);
+    // Mark as processed (track the element itself, not the src)
+    processedImages.add(img);
     stats.totalImages++;
 
     try {
@@ -214,6 +208,12 @@
           img.onload = resolve;
           img.onerror = resolve;
         });
+      }
+
+      // After loading, check if image is too small (icon or thumbnail)
+      if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+        stats.totalImages--; // Don't count this image
+        return;
       }
 
       // Extract dominant colors using Color Thief
@@ -395,7 +395,7 @@
    * Reset and refilter all images
    */
   function resetAndRefilter() {
-    processedImages.clear();
+    processedImages = new WeakSet(); // Reset by creating a new WeakSet
     stats = { totalImages: 0, matchingImages: 0 };
     removeAllFilters();
     startFiltering();

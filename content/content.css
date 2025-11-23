@@ -16,6 +16,10 @@
   opacity: 0.35;
 }
 
+.season-filter-container.season-dimmed:hover {
+  opacity: 1.0;
+}
+
 /* Product Image States */
 img.season-match {
   border: 3px solid #10b981 !important;
@@ -26,6 +30,11 @@ img.season-match {
 img.season-no-match {
   /* Dimmed by parent container */
   filter: grayscale(30%);
+  transition: filter 0.3s ease;
+}
+
+img.season-no-match:hover {
+  filter: grayscale(0%);
 }
 
 /* Match Badge */
