@@ -163,19 +163,30 @@
     if (currentSeasonDiv) currentSeasonDiv.style.display = 'flex';
 
     if (currentSeasonName && currentSettings.selectedSeason) {
-      // Capitalize season name
-      const seasonName = currentSettings.selectedSeason.charAt(0).toUpperCase() +
-                        currentSettings.selectedSeason.slice(1);
+      // Format season name properly (handle hyphenated names)
+      const seasonName = currentSettings.selectedSeason
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 
-      // Get emoji
+      // Get emoji mapping for all 12 seasons
       const emojis = {
-        spring: '🌸',
-        summer: '🌊',
-        autumn: '🍂',
-        winter: '❄️'
+        'bright-spring': '🌺',
+        'warm-spring': '🌸',
+        'light-spring': '🌼',
+        'soft-summer': '🌿',
+        'cool-summer': '🌊',
+        'light-summer': '☁️',
+        'deep-autumn': '🍁',
+        'warm-autumn': '🍂',
+        'soft-autumn': '🌾',
+        'bright-winter': '💎',
+        'cool-winter': '❄️',
+        'deep-winter': '🌑'
       };
 
-      currentSeasonName.textContent = `${emojis[currentSettings.selectedSeason]} ${seasonName}`;
+      const emoji = emojis[currentSettings.selectedSeason] || '🎨';
+      currentSeasonName.textContent = `${emoji} ${seasonName}`;
     }
   }
 

@@ -52,8 +52,19 @@
 
         // Only run if user has selected a season
         if (settings.selectedSeason && settings.filterEnabled) {
-          console.log('[Season Color Checker] Starting filter with', settings.selectedSeason, 'palette');
-          startFiltering();
+          // Check if the selected season exists in the palette
+          if (SEASONAL_PALETTES[settings.selectedSeason]) {
+            console.log('[Season Color Checker] Starting filter with', settings.selectedSeason, 'palette');
+            startFiltering();
+          } else {
+            console.error('[Season Color Checker] ⚠️ OLD SEASON DETECTED! Your selected season "' + settings.selectedSeason + '" is no longer valid.');
+            console.error('[Season Color Checker] 🔄 The extension now uses 12 sub-seasons instead of 4 basic seasons.');
+            console.error('[Season Color Checker] 📋 Please click the extension icon and select a new season from:');
+            console.error('[Season Color Checker]    🌺 Bright Spring, 🌸 Warm Spring, 🌼 Light Spring');
+            console.error('[Season Color Checker]    🌿 Soft Summer, 🌊 Cool Summer, ☁️ Light Summer');
+            console.error('[Season Color Checker]    🍁 Deep Autumn, 🍂 Warm Autumn, 🌾 Soft Autumn');
+            console.error('[Season Color Checker]    💎 Bright Winter, ❄️ Cool Winter, 🌑 Deep Winter');
+          }
         } else if (!settings.selectedSeason) {
           console.warn('[Season Color Checker] No season selected. Click extension icon to choose your palette.');
         } else {
@@ -266,6 +277,7 @@
       // Get current season's palette
       const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
       if (!seasonPalette) {
+        console.warn('[Season Color Checker] Invalid season selected:', settings.selectedSeason, '- Please reselect your season from the popup');
         return;
       }
 

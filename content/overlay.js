@@ -83,7 +83,11 @@
 
     if (seasonName && settings.selectedSeason) {
       const palette = SEASONAL_PALETTES[settings.selectedSeason];
-      seasonName.textContent = `${palette.name} Palette`;
+      if (palette) {
+        seasonName.textContent = `${palette.emoji || ''} ${palette.name} Palette`;
+      } else {
+        seasonName.textContent = 'Season Palette (Please reselect)';
+      }
     }
 
     // Update toggle button text
