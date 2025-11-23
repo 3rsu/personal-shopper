@@ -58,7 +58,8 @@
       </div>
       <div class="season-overlay-content">
         <button class="btn-eyedropper">
-          🎨 Pick a Color
+          <img src="${chrome.runtime.getURL('icons/eyedropper.png')}" alt="" class="btn-icon" />
+          Pick a Color
         </button>
 
         <div class="last-color-display" style="display: none;">

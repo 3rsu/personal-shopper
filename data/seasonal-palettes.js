@@ -17,7 +17,7 @@ const SEASONAL_PALETTES = {
   // SPRING VARIATIONS
   'bright-spring': {
     name: 'Bright Spring',
-    description: 'Warm, clear, vivid colors',
+    description: 'Warm, clear & vivid tones',
     emoji: '🌺',
     colors: [
       '#FF6347', // Bright Coral
@@ -45,7 +45,7 @@ const SEASONAL_PALETTES = {
 
   'warm-spring': {
     name: 'Warm Spring',
-    description: 'Warm, golden, peachy colors',
+    description: 'Golden & peachy warmth',
     emoji: '🌸',
     colors: [
       '#FFE5B4',
@@ -73,7 +73,7 @@ const SEASONAL_PALETTES = {
 
   'light-spring': {
     name: 'Light Spring',
-    description: 'Warm, light, delicate pastels',
+    description: 'Warm & delicate pastels',
     emoji: '🌼',
     colors: [
       '#FFF8DC',
@@ -102,7 +102,7 @@ const SEASONAL_PALETTES = {
   // SUMMER VARIATIONS
   'soft-summer': {
     name: 'Soft Summer',
-    description: 'Cool, muted, gentle colors',
+    description: 'Cool & gentle muted tones',
     emoji: '🌿',
     colors: [
       '#E6E6FA',
@@ -130,7 +130,7 @@ const SEASONAL_PALETTES = {
 
   'cool-summer': {
     name: 'Cool Summer',
-    description: 'Cool, soft, blue-based colors',
+    description: 'Soft blue-based coolness',
     emoji: '🌊',
     colors: [
       '#B0E0E6',
@@ -158,7 +158,7 @@ const SEASONAL_PALETTES = {
 
   'light-summer': {
     name: 'Light Summer',
-    description: 'Cool, light, airy pastels',
+    description: 'Cool & airy light pastels',
     emoji: '☁️',
     colors: [
       '#F0F8FF',
@@ -187,7 +187,7 @@ const SEASONAL_PALETTES = {
   // AUTUMN VARIATIONS
   'deep-autumn': {
     name: 'Deep Autumn',
-    description: 'Warm, rich, intense colors',
+    description: 'Warm & richly intense',
     emoji: '🍁',
     colors: [
       '#8B4513',
@@ -215,7 +215,7 @@ const SEASONAL_PALETTES = {
 
   'warm-autumn': {
     name: 'Warm Autumn',
-    description: 'Warm, golden, earthy colors',
+    description: 'Golden earthy warmth',
     emoji: '🍂',
     colors: [
       '#D2691E',
@@ -243,7 +243,7 @@ const SEASONAL_PALETTES = {
 
   'soft-autumn': {
     name: 'Soft Autumn',
-    description: 'Warm, muted, gentle earth tones',
+    description: 'Muted gentle earth tones',
     emoji: '🌾',
     colors: [
       '#DEB887',
@@ -272,7 +272,7 @@ const SEASONAL_PALETTES = {
   // WINTER VARIATIONS
   'bright-winter': {
     name: 'Bright Winter',
-    description: 'Cool, clear, highly saturated',
+    description: 'Cool & highly saturated',
     emoji: '💎',
     colors: [
       '#FF0000',
@@ -300,7 +300,7 @@ const SEASONAL_PALETTES = {
 
   'cool-winter': {
     name: 'Cool Winter',
-    description: 'Cool, icy, blue-based colors',
+    description: 'Icy blue-based coolness',
     emoji: '❄️',
     colors: [
       '#000000',
@@ -328,7 +328,7 @@ const SEASONAL_PALETTES = {
 
   'deep-winter': {
     name: 'Deep Winter',
-    description: 'Cool, dark, intense colors',
+    description: 'Cool & darkly intense',
     emoji: '🌑',
     colors: [
       '#000000',

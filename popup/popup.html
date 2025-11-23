@@ -13,6 +13,14 @@
         <img src="../icons/blob.png" alt="" class="icon" />
         My Wardrobe
       </h1>
+      <label
+        class="toggle-switch"
+        data-tooltip="Highlight products"
+        aria-label="Toggle product highlighting"
+      >
+        <input type="checkbox" id="filter-toggle" checked />
+        <span class="toggle-slider"></span>
+      </label>
     </div>
 
     <!-- Main Content -->
@@ -24,10 +32,6 @@
             <h2 class="section-title">My Season</h2>
             <p class="section-description">What is your season color palette?</p>
           </div>
-          <label class="toggle-switch" data-tooltip="Highlight products">
-            <input type="checkbox" id="filter-toggle" checked />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
 
         <div class="season-grid" id="season-grid">
@@ -36,21 +40,18 @@
 
         <div class="current-season" id="current-season" style="display: none">
           <div class="current-season-info">
-            <span class="current-season-label">Your Season:</span>
             <span class="current-season-name" id="current-season-name"></span>
           </div>
-          <button class="btn-change" id="change-season">
-            Change
-            <!-- <span class="expand-icon">▼</span> -->
+          <button class="btn-change" id="change-season" aria-label="Change season selection">
+            Edit
           </button>
         </div>
       </section>
 
       <!-- Manual Color Picker Section -->
-      <section class="section" id="color-picker-section">
+      <section class="section section-divider" id="color-picker-section">
         <div class="picker-card">
           <div class="picker-header">
-            <!-- <div class="picker-icon">🎨</div> -->
             <div class="picker-info">
               <h3 class="picker-title">Manual Color Picker</h3>
               <p class="picker-description">
@@ -58,7 +59,11 @@
               </p>
             </div>
           </div>
-          <button class="btn btn-primary" id="activate-picker">
+          <button
+            class="btn btn-primary"
+            id="activate-picker"
+            aria-label="Activate color picker eyedropper"
+          >
             <img src="../icons/eyedropper.png" alt="" class="btn-icon" />
             Pick a Color
           </button>
@@ -67,26 +72,43 @@
         <!-- Color History -->
         <div id="color-history-container" style="display: none">
           <div class="section-header">
-            <h3 class="section-subtitle">Browsing History</h3>
-            <button class="btn btn-text btn-sm" id="clear-history">Clear</button>
+            <h3 class="section-subtitle">History</h3>
+            <button class="btn btn-text btn-sm" id="clear-history" aria-label="Clear color history">
+              Clear
+            </button>
           </div>
-          <div id="color-history" class="color-history-list"></div>
+          <div id="color-history" class="color-history-list" role="list"></div>
+          <button
+            class="btn btn-text btn-show-all"
+            id="show-all-history"
+            style="display: none"
+            aria-label="Show all color history"
+          >
+            Show All
+          </button>
         </div>
       </section>
 
       <!-- Wishlist Section -->
-      <section class="section" id="wishlist-section">
+      <section class="section section-divider" id="wishlist-section">
         <div class="section-header">
           <h2 class="section-title">Wishlist</h2>
-          <button class="btn btn-text btn-sm" id="clear-wishlist">Clear All</button>
+          <button
+            class="btn btn-text btn-sm"
+            id="clear-wishlist"
+            aria-label="Clear all wishlist items"
+          >
+            Clear All
+          </button>
         </div>
 
         <div id="wishlist-empty" class="empty-state">
+          <span class="empty-icon" aria-hidden="true">💝</span>
           <p>No saved items yet</p>
           <p class="empty-hint">Click on matching items while browsing to add them here</p>
         </div>
 
-        <div id="wishlist-items" class="wishlist-grid"></div>
+        <div id="wishlist-items" class="wishlist-grid" role="list"></div>
       </section>
     </div>
 

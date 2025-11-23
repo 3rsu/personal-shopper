@@ -17,6 +17,7 @@
 
   let wishlist = [];
   let colorHistory = [];
+  let showAllHistory = false;
 
   /**
    * Generate season cards from SEASONAL_PALETTES data
@@ -39,13 +40,13 @@
       const first5Colors = season.colors.slice(0, 5);
 
       return `
-        <button class="season-card" data-season="${seasonKey}">
+        <button class="season-card" data-season="${seasonKey}" tabindex="0" aria-label="${season.name}: ${season.description}">
           <div class="season-card-header">
-            <span class="season-emoji">${season.emoji}</span>
+            <span class="season-emoji" aria-hidden="true">${season.emoji}</span>
             <h3>${season.name}</h3>
           </div>
           <p class="season-desc">${season.description}</p>
-          <div class="season-colors">
+          <div class="season-colors" aria-hidden="true">
             ${first5Colors.map(color =>
               `<span class="color-dot" style="background: ${color}"></span>`
             ).join('')}
@@ -124,11 +125,20 @@
    * Set up event listeners
    */
   function setupEventListeners() {
-    // Season card clicks
+    // Season card clicks and keyboard navigation
     document.querySelectorAll('.season-card').forEach(card => {
       card.addEventListener('click', () => {
         const season = card.dataset.season;
         selectSeason(season);
+      });
+
+      // Keyboard support
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const season = card.dataset.season;
+          selectSeason(season);
+        }
       });
     });
 
@@ -162,6 +172,12 @@
     const clearHistoryBtn = document.getElementById('clear-history');
     if (clearHistoryBtn) {
       clearHistoryBtn.addEventListener('click', clearColorHistory);
+    }
+
+    // Show all history toggle
+    const showAllHistoryBtn = document.getElementById('show-all-history');
+    if (showAllHistoryBtn) {
+      showAllHistoryBtn.addEventListener('click', toggleShowAllHistory);
     }
   }
 
@@ -343,15 +359,15 @@
       wishlistContainer.style.display = 'grid';
 
       wishlistContainer.innerHTML = wishlist.map(item => `
-        <div class="wishlist-item" data-id="${item.id}">
+        <div class="wishlist-item" data-id="${item.id}" role="listitem">
           <div class="wishlist-item-image">
-            <img src="${item.imageUrl}" alt="Wishlist item" loading="lazy">
-            <button class="wishlist-item-remove" data-id="${item.id}" title="Remove">
+            <img src="${item.imageUrl}" alt="Wishlist item ${item.matchScore}% match" loading="lazy">
+            <button class="wishlist-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove from wishlist">
               ×
             </button>
           </div>
           <div class="wishlist-item-info">
-            <div class="wishlist-item-colors">
+            <div class="wishlist-item-colors" aria-hidden="true">
               ${(item.dominantColors || []).slice(0, 3).map(color =>
                 `<span class="color-dot" style="background: ${color}"></span>`
               ).join('')}
@@ -359,7 +375,7 @@
             <div class="wishlist-item-score">
               ${item.matchScore}% match
             </div>
-            <a href="${item.pageUrl}" class="wishlist-item-link" target="_blank" title="View product">
+            <a href="${item.pageUrl}" class="wishlist-item-link" target="_blank" rel="noopener noreferrer" aria-label="View product on store website">
               View Product →
             </a>
           </div>
@@ -459,6 +475,7 @@
   function renderColorHistory() {
     const historyContainer = document.getElementById('color-history');
     const historySection = document.getElementById('color-history-container');
+    const showAllBtn = document.getElementById('show-all-history');
 
     if (!historyContainer || !historySection) return;
 
@@ -469,8 +486,9 @@
 
     historySection.style.display = 'block';
 
-    // Show last 5 colors
-    const recentColors = colorHistory.slice(0, 5);
+    // Show 3 colors by default, or all if toggled
+    const displayLimit = showAllHistory ? colorHistory.length : 3;
+    const recentColors = colorHistory.slice(0, displayLimit);
 
     historyContainer.innerHTML = recentColors.map(color => {
       const matchClass = color.match ? 'match' : 'no-match';
@@ -478,21 +496,39 @@
       const matchText = color.match ? 'Matches' : 'No match';
 
       return `
-        <div class="history-item ${matchClass}">
+        <div class="history-item ${matchClass}" role="listitem">
           <div class="history-color-info">
-            <div class="history-swatch" style="background: ${color.hex};"></div>
+            <div class="history-swatch" style="background: ${color.hex};" aria-hidden="true"></div>
             <div class="history-details">
               <div class="history-hex">${color.hex}</div>
               <div class="history-status ${matchClass}">
-                <span>${matchIcon}</span>
+                <span aria-hidden="true">${matchIcon}</span>
                 <span>${matchText}</span>
               </div>
             </div>
           </div>
-          <div class="history-distance">ΔE ${color.distance}</div>
+          <div class="history-distance" aria-label="Color distance: ${color.distance}">ΔE ${color.distance}</div>
         </div>
       `;
     }).join('');
+
+    // Show/hide "Show All" button
+    if (showAllBtn) {
+      if (colorHistory.length > 3) {
+        showAllBtn.style.display = 'block';
+        showAllBtn.textContent = showAllHistory ? 'Show Less' : 'Show All';
+      } else {
+        showAllBtn.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Toggle show all history
+   */
+  function toggleShowAllHistory() {
+    showAllHistory = !showAllHistory;
+    renderColorHistory();
   }
 
   /**
