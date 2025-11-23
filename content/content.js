@@ -194,6 +194,29 @@
   }
 
   /**
+   * Check if we can access image data without CORS errors
+   * Returns true if the image is accessible, false if CORS-blocked
+   */
+  function canAccessImageData(img) {
+    try {
+      // Create a temporary 1x1 canvas (not added to DOM)
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+
+      // Try to draw the image and read pixel data
+      ctx.drawImage(img, 0, 0, 1, 1);
+      ctx.getImageData(0, 0, 1, 1); // This will throw if CORS-blocked
+
+      return true; // Success - image is accessible
+    } catch (e) {
+      // CORS blocked or other error
+      return false;
+    }
+  }
+
+  /**
    * Process a single image
    */
   async function processImage(img) {
@@ -222,51 +245,23 @@
         return;
       }
 
+      // Pre-check: Can we access this image's pixel data?
+      if (!canAccessImageData(img)) {
+        console.log('[Season Color Checker] CORS blocked, skipping:', img.src.substring(0, 80));
+        stats.totalImages--; // Don't count this image
+        return;
+      }
+
       const colorThief = new ColorThief();
       let dominantColors;
 
       try {
-        // First, try to set crossOrigin attribute if not already set
-        if (!img.crossOrigin) {
-          img.crossOrigin = 'anonymous';
-          // Wait a bit for the image to reload with CORS headers
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        // Get palette of 5 colors
+        // Safe to proceed - image is accessible
         dominantColors = colorThief.getPalette(img, 5);
       } catch (e) {
-        // CORS error - try creating a proxy image
-        console.log('[Season Color Checker] CORS blocked, trying proxy for:', img.src.substring(0, 80));
-
-        try {
-          // Create a canvas and draw the image
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = img.naturalWidth || img.width;
-          canvas.height = img.naturalHeight || img.height;
-
-          // Create a new image with crossOrigin set
-          const proxyImg = new Image();
-          proxyImg.crossOrigin = 'anonymous';
-
-          await new Promise((resolve, reject) => {
-            proxyImg.onload = resolve;
-            proxyImg.onerror = reject;
-            proxyImg.src = img.src;
-          });
-
-          ctx.drawImage(proxyImg, 0, 0);
-
-          // Try to get palette from canvas
-          dominantColors = colorThief.getPalette(canvas, 5);
-          console.log('[Season Color Checker] Proxy method succeeded');
-        } catch (proxyError) {
-          // Still failed - skip this image silently
-          console.log('[Season Color Checker] Skipping CORS-blocked image');
-          stats.totalImages--; // Don't count this image
-          return;
-        }
+        console.log('[Season Color Checker] Error extracting colors:', e.message);
+        stats.totalImages--; // Don't count this image
+        return;
       }
 
       if (!dominantColors || dominantColors.length === 0) {
