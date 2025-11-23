@@ -199,28 +199,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
-  // Activate eyedropper
-  if (request.action === 'activateEyedropper') {
-    const tabId = request.tabId;
-
-    if (!tabId) {
-      sendResponse({ success: false, error: 'No tab ID provided' });
-      return true;
-    }
-
-    // Inject eyedropper script into the tab
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content/eyedropper.js']
-    }).then(() => {
-      sendResponse({ success: true });
-    }).catch(error => {
-      console.error('Failed to inject eyedropper:', error);
-      sendResponse({ success: false, error: error.message });
-    });
-
-    return true; // Keep channel open for async response
-  }
+  // Note: Eyedropper activation now handled directly by content script
+  // (eyedropper.js is loaded as content script and receives messages via chrome.tabs.sendMessage)
 
   // Save picked color to history
   if (request.action === 'savePickedColor') {

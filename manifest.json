@@ -26,7 +26,8 @@
         "data/seasonal-palettes.js",
         "background/color-processor.js",
         "content/content.js",
-        "content/overlay.js"
+        "content/overlay.js",
+        "content/eyedropper.js"
       ],
       "css": ["content/content.css"],
       "run_at": "document_idle"

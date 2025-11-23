@@ -1,80 +1,27 @@
 /**
  * Eyedropper Tool - Manual Color Picker
  *
- * Uses the native EyeDropper API for accurate color sampling
- * from any webpage element.
- *
- * Features:
- * - Native browser eyedropper UI
- * - CORS-safe (browser handles it)
- * - Simple and reliable
- * - Automatic cleanup
+ * Uses the native EyeDropper API for accurate color sampling.
+ * Loaded as content script but waits for activation message.
  */
 
 (function() {
   'use strict';
 
-  // Prevent multiple instances
-  if (window.__seasonColorPickerActive) {
-    console.log('[Eyedropper] Already active');
-    return;
-  }
-
-  window.__seasonColorPickerActive = true;
-
-  // Configuration
   const RESULT_DISPLAY_MS = 5000;
 
-  // State
-  let selectedSeason = null;
-
   /**
-   * Initialize the eyedropper tool
+   * Activate the eyedropper
    */
-  async function init() {
-    console.log('[Eyedropper] Initializing...');
-
-    // Get user's selected season
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
-
-      if (!response) {
-        showError('Failed to load settings');
-        cleanup();
-        return;
-      }
-
-      selectedSeason = response.selectedSeason;
-
-      if (!selectedSeason) {
-        showError('Please select a season first!');
-        cleanup();
-        return;
-      }
-
-      console.log('[Eyedropper] Season:', selectedSeason);
-    } catch (error) {
-      console.error('[Eyedropper] Failed to get settings:', error);
-      showError('Failed to load settings');
-      cleanup();
-      return;
-    }
+  async function activateEyedropper(selectedSeason) {
+    console.log('[Eyedropper] Activating for season:', selectedSeason);
 
     // Check if EyeDropper API is supported
     if (!window.EyeDropper) {
       showError('Color picker not supported in this browser. Please use Chrome/Edge 95+');
-      cleanup();
       return;
     }
 
-    // Start the eyedropper
-    startEyeDropper();
-  }
-
-  /**
-   * Start the native eyedropper
-   */
-  async function startEyeDropper() {
     try {
       const eyeDropper = new EyeDropper();
       console.log('[Eyedropper] Opening native picker...');
@@ -90,7 +37,7 @@
 
         if (rgb) {
           // Analyze the color
-          await analyzeColor(rgb, hexColor);
+          await analyzeColor(rgb, hexColor, selectedSeason);
         } else {
           showError('Failed to process color');
         }
@@ -104,47 +51,49 @@
         console.error('[Eyedropper] Error:', error);
         showError('Failed to pick color: ' + error.message);
       }
-    } finally {
-      cleanup();
     }
   }
 
   /**
    * Analyze picked color against season palette
    */
-  async function analyzeColor(rgb, hex) {
+  async function analyzeColor(rgb, hex, selectedSeason) {
     try {
-      // Check if ColorProcessor is available
+      // ColorProcessor and SEASONAL_PALETTES are available from content scripts
       if (typeof ColorProcessor === 'undefined') {
         throw new Error('ColorProcessor not loaded');
+      }
+
+      if (typeof SEASONAL_PALETTES === 'undefined') {
+        throw new Error('Season palettes not loaded');
       }
 
       // Get palette colors for selected season
       const palette = SEASONAL_PALETTES[selectedSeason];
       if (!palette) {
+        console.error('[Eyedropper] Season not found:', selectedSeason);
+        console.error('[Eyedropper] Available seasons:', Object.keys(SEASONAL_PALETTES));
         throw new Error('Season palette not found');
       }
 
-      // Find closest match
-      const paletteColors = palette.colors.map(hexToRgb);
+      console.log('[Eyedropper] Using palette:', palette.name);
+      console.log('[Eyedropper] Palette has', palette.colors.length, 'colors');
+
+      // Use ColorProcessor's findClosestMatch method
       const processor = new ColorProcessor();
+      const match = processor.findClosestMatch(hex, palette.colors);
 
-      let closestMatch = null;
-      let minDistance = Infinity;
+      if (!match || !match.closestColor) {
+        throw new Error('Failed to find closest color match');
+      }
 
-      paletteColors.forEach((paletteColor, index) => {
-        const distance = processor.calculateDeltaE(rgb, paletteColor);
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestMatch = {
-            color: palette.colors[index],
-            distance: distance
-          };
-        }
-      });
+      const closestMatch = {
+        color: match.closestColor,
+        distance: Math.round(match.deltaE)
+      };
 
       // Determine if it's a match (ΔE < 20)
-      const isMatch = minDistance < 20;
+      const isMatch = match.isMatch;
 
       // Save to history
       await savePickedColor({
@@ -152,7 +101,7 @@
         rgb: rgb,
         match: isMatch,
         closestMatch: closestMatch.color,
-        distance: Math.round(minDistance),
+        distance: closestMatch.distance,
         season: selectedSeason,
         timestamp: Date.now()
       });
@@ -162,7 +111,7 @@
 
     } catch (error) {
       console.error('[Eyedropper] Analysis failed:', error);
-      showError('Failed to analyze color');
+      showError('Failed to analyze color: ' + error.message);
     }
   }
 
@@ -170,7 +119,6 @@
    * Show color match result on page
    */
   function showResult(hex, isMatch, closestMatch) {
-    // Create result card with Shadow DOM
     const resultContainer = document.createElement('div');
     resultContainer.id = 'season-color-result';
     resultContainer.style.cssText = `
@@ -184,7 +132,6 @@
 
     const resultShadow = resultContainer.attachShadow({ mode: 'open' });
 
-    // Styles
     const style = document.createElement('style');
     style.textContent = `
       @keyframes slideDown {
@@ -287,7 +234,6 @@
     `;
     resultShadow.appendChild(style);
 
-    // Result card
     const card = document.createElement('div');
     card.className = 'result-card';
     card.innerHTML = `
@@ -319,7 +265,6 @@
     resultShadow.appendChild(card);
     document.body.appendChild(resultContainer);
 
-    // Auto-remove after delay
     setTimeout(() => {
       resultContainer.style.opacity = '0';
       resultContainer.style.transition = 'opacity 0.3s ease';
@@ -370,17 +315,6 @@
   }
 
   /**
-   * Clean up and remove eyedropper
-   */
-  function cleanup() {
-    console.log('[Eyedropper] Cleaning up...');
-    window.__seasonColorPickerActive = false;
-    console.log('[Eyedropper] Cleanup complete');
-  }
-
-  // ===== Utility Functions =====
-
-  /**
    * Convert hex to RGB
    */
   function hexToRgb(hex) {
@@ -392,7 +326,15 @@
     ] : null;
   }
 
-  // Start the eyedropper
-  init();
+  // Listen for activation message from popup
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'activateEyedropper' && message.season) {
+      activateEyedropper(message.season);
+      sendResponse({ success: true });
+      return true;
+    }
+  });
+
+  console.log('[Eyedropper] Content script loaded and ready');
 
 })();

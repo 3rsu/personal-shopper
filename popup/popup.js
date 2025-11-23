@@ -342,16 +342,22 @@
         return;
       }
 
-      // Send message to activate eyedropper
-      chrome.runtime.sendMessage({
+      // Send message directly to content script
+      chrome.tabs.sendMessage(tab.id, {
         action: 'activateEyedropper',
-        tabId: tab.id
+        season: currentSettings.selectedSeason
       }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to send message:', chrome.runtime.lastError);
+          alert('Failed to activate eyedropper. Please refresh the page and try again.');
+          return;
+        }
+
         if (response && response.success) {
           // Close popup to allow user to interact with page
           window.close();
         } else {
-          alert('Failed to activate eyedropper: ' + (response?.error || 'Unknown error'));
+          alert('Failed to activate eyedropper');
         }
       });
     } catch (error) {

@@ -64,38 +64,39 @@ Uncaught Error: Extension context invalidated.
 
 ---
 
-### Issue: Magnifier doesn't appear
+### Issue: Eyedropper doesn't activate
 
-**Symptom**: Cursor changes to crosshair, but no magnifier shows up
+**Symptom**: Clicking "Pick a Color" button does nothing or shows error
 
 **Possible Causes**:
-1. Page CSS conflicts
-2. Z-index issues
-3. Script injection failed
+1. Content script not loaded
+2. Page needs refresh
+3. Browser doesn't support EyeDropper API
 
 **Solutions**:
 
 **Try 1: Refresh and retry**
 ```
-1. Press ESC to exit eyedropper
-2. Refresh page (F5)
-3. Activate eyedropper again
+1. Refresh the page (F5)
+2. Click "Pick a Color" again
+3. Native eyedropper should appear
 ```
 
-**Try 2: Check console**
+**Try 2: Check browser support**
+```
+1. Chrome/Edge 95+ required
+2. EyeDropper API not available in Firefox/Safari
+3. Update browser if needed
+```
+
+**Try 3: Check console**
 ```
 1. Open DevTools (F12)
 2. Look for errors like:
-   - "Shadow DOM not supported"
-   - "Failed to execute 'attachShadow'"
+   - "Failed to send message"
+   - "Could not establish connection"
+   - "Color picker not supported"
 3. Report these errors
-```
-
-**Try 3: Test on different site**
-```
-1. Try on a simple site (e.g., example.com)
-2. If it works there, the original site has conflicts
-3. Report the problematic site
 ```
 
 ---
