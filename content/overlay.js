@@ -5,7 +5,7 @@
  * Displays: "✓ 12 of 45 items match your Spring palette"
  */
 
-(function() {
+(function () {
   'use strict';
 
   let overlayElement = null;
@@ -14,12 +14,12 @@
   /**
    * Initialize the overlay widget
    */
-  window.initializeOverlay = function(stats) {
+  window.initializeOverlay = function (stats, settings) {
     if (overlayElement) {
       overlayElement.remove();
     }
 
-    overlayElement = createOverlay(stats);
+    overlayElement = createOverlay(stats, settings);
     document.body.appendChild(overlayElement);
 
     // Make draggable
@@ -29,15 +29,26 @@
   /**
    * Create overlay HTML structure
    */
-  function createOverlay(stats) {
+  function createOverlay(stats, settings) {
     const overlay = document.createElement('div');
     overlay.id = 'season-color-overlay';
     overlay.className = 'season-overlay';
 
+    // Get season info for initial title
+    let seasonTitle = '';
+    if (settings && settings.selectedSeason) {
+      const palette = SEASONAL_PALETTES[settings.selectedSeason];
+      if (palette) {
+        seasonTitle = `${palette.name} Palette`;
+      }
+    }
+
     overlay.innerHTML = `
       <div class="season-overlay-header">
-        <span class="season-overlay-icon">🎨</span>
-        <span class="season-overlay-title">Season Filter</span>
+        <img src="${chrome.runtime.getURL(
+          'icons/blob.png',
+        )}" class="season-overlay-icon" alt="Season icon">
+        <div class="season-name"></div>
         <button class="season-overlay-minimize" title="Minimize">−</button>
         <button class="season-overlay-close" title="Close">×</button>
       </div>
@@ -50,7 +61,6 @@
               <strong class="total-count">0</strong> items match
             </span>
           </div>
-          <div class="season-name"></div>
         </div>
         <div class="season-overlay-actions">
           <button class="btn-toggle-filter">Turn Off</button>
@@ -66,12 +76,12 @@
     overlay.querySelector('.btn-open-popup').addEventListener('click', openPopup);
 
     return overlay;
-  };
+  }
 
   /**
    * Update overlay with current stats
    */
-  window.updateOverlay = function(stats, settings) {
+  window.updateOverlay = function (stats, settings) {
     if (!overlayElement) return;
 
     const matchCount = overlayElement.querySelector('.match-count');
@@ -85,6 +95,7 @@
       const palette = SEASONAL_PALETTES[settings.selectedSeason];
       if (palette) {
         seasonName.textContent = `${palette.emoji || ''} ${palette.name} Palette`;
+        seasonName.title = `${palette.name} Palette`;
       } else {
         seasonName.textContent = 'Season Palette (Please reselect)';
       }
@@ -196,5 +207,4 @@
       isDragging = false;
     }
   }
-
 })();

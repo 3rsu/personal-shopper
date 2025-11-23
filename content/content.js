@@ -116,7 +116,7 @@
 
     // Initialize overlay widget
     if (typeof window.initializeOverlay === 'function') {
-      window.initializeOverlay(stats);
+      window.initializeOverlay(stats, settings);
       console.log('[Season Color Checker] Overlay widget initialized');
     } else {
       console.warn('[Season Color Checker] Overlay not available');

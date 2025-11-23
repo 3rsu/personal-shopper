@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shop your Color</title>
+    <title>Wardrobe</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -11,7 +11,7 @@
     <div class="header">
       <h1 class="title">
         <img src="../icons/blob.png" alt="" class="icon" />
-        Shop your Color
+        My Wardrobe
       </h1>
     </div>
 
@@ -21,7 +21,7 @@
       <section class="section" id="season-selection">
         <div class="section-header">
           <div class="section-header-text">
-            <h2 class="section-title">Your Seasonal Palette</h2>
+            <h2 class="section-title">My Season</h2>
             <p class="section-description">What is your season color palette?</p>
           </div>
           <label class="toggle-switch" data-tooltip="Highlight products">
@@ -59,7 +59,7 @@
             </div>
           </div>
           <button class="btn btn-primary" id="activate-picker">
-            <span class="btn-icon">⊙</span>
+            <img src="../icons/eyedropper.png" alt="" class="btn-icon" />
             Pick a Color
           </button>
         </div>
@@ -67,7 +67,7 @@
         <!-- Color History -->
         <div id="color-history-container" style="display: none">
           <div class="section-header">
-            <h3 class="section-subtitle">Recently Picked</h3>
+            <h3 class="section-subtitle">Browsing History</h3>
             <button class="btn btn-text btn-sm" id="clear-history">Clear</button>
           </div>
           <div id="color-history" class="color-history-list"></div>
@@ -82,7 +82,7 @@
         </div>
 
         <div id="wishlist-empty" class="empty-state">
-          <span class="empty-icon">💝</span>
+          <!-- <span class="empty-icon">💝</span> -->
           <p>No saved items yet</p>
           <p class="empty-hint">Click on matching items while browsing to add them here</p>
         </div>

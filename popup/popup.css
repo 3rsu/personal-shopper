@@ -24,6 +24,7 @@ body {
   /* background: linear-gradient(135deg, #fda7a6 0%, #a9d4c0 50%, #fddfa5 100%); */
   color: white;
   padding: 16px;
+  padding-bottom: 8px;
   text-align: center;
 }
 
@@ -582,7 +583,9 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .btn-icon {
-  font-size: 16px;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
 }
 
 /* Color History */
