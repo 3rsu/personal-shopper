@@ -127,7 +127,7 @@ class ColorProcessor {
   }
 
   /**
-   * Check if dominant colors match palette (2 out of 3 rule)
+   * Check if dominant colors match palette (1 out of 2 rule)
    * @param {Array} dominantColors - Array of RGB arrays from Color Thief
    * @param {Array} paletteHexColors - Array of palette hex colors
    * @returns {Object} Match result with details
@@ -140,7 +140,7 @@ class ColorProcessor {
     const results = [];
     let matchCount = 0;
 
-    // Check top 3 dominant colors
+    // Check top 3 dominant colors for detailed analysis
     const colorsToCheck = dominantColors.slice(0, 3);
 
     for (const rgb of colorsToCheck) {
@@ -159,8 +159,10 @@ class ColorProcessor {
       }
     }
 
-    // Item matches if 2 or more of top 3 colors match
-    const matches = matchCount >= 2;
+    // Item matches if at least 1 of top 2 colors match
+    // This is more lenient for single-color garments while still being accurate
+    const topTwoMatches = results.slice(0, 2).filter(r => r.isMatch).length;
+    const matches = topTwoMatches >= 1;
 
     return {
       matches,
@@ -168,6 +170,124 @@ class ColorProcessor {
       totalColors: colorsToCheck.length,
       details: results,
       confidence: (matchCount / colorsToCheck.length) * 100
+    };
+  }
+
+  /**
+   * Detect which seasonal palette(s) a product belongs to
+   * @param {Array} dominantColors - Array of RGB arrays from Color Thief
+   * @param {Object} allPalettes - SEASONAL_PALETTES object with all 12 seasons
+   * @returns {Object} Season detection result with rankings
+   */
+  detectProductSeason(dominantColors, allPalettes) {
+    if (!dominantColors || dominantColors.length === 0 || !allPalettes) {
+      return {
+        primarySeason: null,
+        secondarySeasons: [],
+        allScores: [],
+        noMatch: true
+      };
+    }
+
+    const seasonScores = [];
+
+    // Check each season
+    for (const [seasonKey, seasonData] of Object.entries(allPalettes)) {
+      const matchResult = this.checkColorMatch(dominantColors, seasonData.colors);
+
+      seasonScores.push({
+        seasonKey,
+        seasonName: seasonData.name,
+        emoji: seasonData.emoji,
+        description: seasonData.description,
+        matchCount: matchResult.matchCount,
+        confidence: matchResult.confidence,
+        details: matchResult.details,
+        matches: matchResult.matches
+      });
+    }
+
+    // Sort by match count (descending), then by average deltaE (ascending)
+    seasonScores.sort((a, b) => {
+      if (b.matchCount !== a.matchCount) {
+        return b.matchCount - a.matchCount;
+      }
+      // If same match count, prefer lower average deltaE
+      const avgDeltaA = a.details.reduce((sum, d) => sum + d.deltaE, 0) / a.details.length;
+      const avgDeltaB = b.details.reduce((sum, d) => sum + d.deltaE, 0) / b.details.length;
+      return avgDeltaA - avgDeltaB;
+    });
+
+    // Primary season: highest scoring
+    const primarySeason = seasonScores[0];
+
+    // Secondary seasons: those with at least 1 match and close to primary score
+    const secondarySeasons = seasonScores.slice(1)
+      .filter(season =>
+        season.matchCount > 0 &&
+        season.matchCount >= primarySeason.matchCount - 1
+      )
+      .slice(0, 3); // Limit to top 3 secondary seasons
+
+    return {
+      primarySeason,
+      secondarySeasons,
+      allScores: seasonScores,
+      noMatch: primarySeason.matchCount === 0
+    };
+  }
+
+  /**
+   * Compare product season with user's season
+   * @param {Object} productSeasonResult - Result from detectProductSeason()
+   * @param {string} userSeasonKey - User's selected season key (e.g., 'bright-spring')
+   * @returns {Object} Compatibility analysis
+   */
+  analyzeSeasonCompatibility(productSeasonResult, userSeasonKey) {
+    if (!productSeasonResult || !userSeasonKey) {
+      return { compatible: false, reason: 'Missing data' };
+    }
+
+    const { primarySeason, secondarySeasons, noMatch } = productSeasonResult;
+
+    if (noMatch) {
+      return {
+        compatible: false,
+        reason: 'No clear season match',
+        recommendation: 'This item has colors that don\'t fit standard seasonal palettes'
+      };
+    }
+
+    // Check if user's season matches primary
+    if (primarySeason.seasonKey === userSeasonKey) {
+      return {
+        compatible: true,
+        matchType: 'primary',
+        reason: `Perfect match for ${primarySeason.seasonName}`,
+        confidence: primarySeason.confidence
+      };
+    }
+
+    // Check if user's season is in secondary matches
+    const secondaryMatch = secondarySeasons.find(s => s.seasonKey === userSeasonKey);
+    if (secondaryMatch) {
+      return {
+        compatible: true,
+        matchType: 'secondary',
+        reason: `Also works for ${secondaryMatch.seasonName}`,
+        confidence: secondaryMatch.confidence
+      };
+    }
+
+    // No match - recommend alternatives
+    return {
+      compatible: false,
+      matchType: 'none',
+      reason: `This is a ${primarySeason.seasonName} item`,
+      recommendation: secondarySeasons.length > 0
+        ? `Also works for: ${secondarySeasons.map(s => s.seasonName).join(', ')}`
+        : `Best suited for ${primarySeason.seasonName}`,
+      suggestedSeasons: [primarySeason, ...secondarySeasons]
     };
   }
 
