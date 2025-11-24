@@ -22,6 +22,7 @@
   let colorProcessor = null;
   let processedImages = new WeakSet(); // Track actual image elements we've analyzed
   let processedSwatches = new WeakSet(); // Track analyzed swatch elements
+  let swatchAnalysisData = new WeakMap(); // Store swatch analysis without DOM modifications
   let stats = {
     totalImages: 0,
     matchingImages: 0,
@@ -183,6 +184,17 @@
   }
 
   /**
+   * Detect page type based on number of product images
+   * @param {Array} images - Array of product image elements
+   * @returns {string} - 'detail' for single-product pages, 'listing' for multi-product pages
+   */
+  function detectPageType(images) {
+    // If <= 16 images, likely a detail page (single product with multiple views)
+    // If > 16 images, likely a listing page (multiple products)
+    return images.length <= 16 ? 'detail' : 'listing';
+  }
+
+  /**
    * Find product images on the page
    */
   function findAndProcessImages() {
@@ -241,6 +253,23 @@
         // Skip if too small (likely icon, thumbnail, or UI element)
         if (img.naturalWidth < 100 || img.naturalHeight < 100) {
           return;
+        }
+
+        // Skip images that look like website color swatches (small, square images)
+        // These are typically 20-100px and used for color selection
+        if (img.naturalWidth <= 100 && img.naturalHeight <= 100) {
+          // Check if it has swatch-related attributes or classes
+          const imgClasses = (img.className || '').toLowerCase();
+          const imgAlt = (img.alt || '').toLowerCase();
+          if (
+            imgClasses.includes('swatch') ||
+            imgClasses.includes('color') ||
+            imgClasses.includes('variant') ||
+            imgAlt.includes('swatch') ||
+            imgAlt.includes('color')
+          ) {
+            return; // Skip website swatch images
+          }
         }
       }
       // For unloaded images, include them - size will be checked in processImage()
@@ -1647,6 +1676,21 @@
     // Only show summary once per page load
     if (hasShownSummary) return;
 
+    // Check page type - only process swatches on detail pages
+    const images = findProductImages();
+    const pageType = detectPageType(images);
+
+    if (pageType === 'listing') {
+      console.log(
+        '[Season Color Checker] Skipping swatch detection on listing page (' + images.length + ' images)',
+      );
+      return;
+    }
+
+    console.log(
+      '[Season Color Checker] Detail page detected (' + images.length + ' images), processing swatches',
+    );
+
     // Find and process color swatches
     const swatches = findColorSwatches();
     if (swatches.length === 0) return;
@@ -1802,18 +1846,21 @@
       // Find closest matching color
       const result = colorProcessor.findClosestMatch(hex, seasonPalette.colors);
 
-      // Store swatch data
-      swatch.dataset.swatchColor = hex;
-      swatch.dataset.swatchMatch = result.isMatch ? 'true' : 'false';
-      swatch.dataset.swatchDeltaE = result.deltaE.toFixed(1);
+      // Store swatch data in internal WeakMap (not on DOM)
+      swatchAnalysisData.set(swatch, {
+        color: hex,
+        match: result.isMatch,
+        deltaE: result.deltaE.toFixed(1),
+        timestamp: Date.now(),
+      });
 
       // Update stats
       if (result.isMatch) {
         stats.matchingSwatches++;
       }
 
-      // Apply visual styling
-      applySwatchStyle(swatch, result);
+      // Skip visual styling - we don't want to modify website swatches
+      // applySwatchStyle(swatch, result);
     } catch (error) {
       console.error('[Season Color Checker] Error processing swatch:', error);
       stats.totalSwatches--;
@@ -1836,28 +1883,15 @@
   }
 
   /**
-   * Apply visual styling to swatch
+   * Apply visual styling to swatch (DISABLED - no longer modifying website swatches)
+   *
+   * Previously this function added CSS classes and tooltips to website swatch elements.
+   * We now store swatch analysis data internally in swatchAnalysisData WeakMap instead.
    */
   function applySwatchStyle(swatch, result) {
-    // Remove existing classes
-    swatch.classList.remove('season-swatch-match', 'season-swatch-no-match');
-
-    // Add match/no-match class
-    if (result.isMatch) {
-      swatch.classList.add('season-swatch-match');
-    } else {
-      swatch.classList.add('season-swatch-no-match');
-    }
-
-    // Add tooltip
-    const hex = swatch.dataset.swatchColor;
-    const deltaE = swatch.dataset.swatchDeltaE;
-
-    if (result.isMatch) {
-      swatch.title = `✓ ${hex} matches your ${settings.selectedSeason} palette (ΔE ${deltaE})`;
-    } else {
-      swatch.title = `✗ ${hex} doesn't match (ΔE ${deltaE})`;
-    }
+    // NO-OP: We no longer modify website swatch elements visually
+    // All swatch data is stored in swatchAnalysisData WeakMap
+    return;
   }
 
   /**
