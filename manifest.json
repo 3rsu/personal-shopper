@@ -19,6 +19,7 @@
         "libs/color-thief.min.js",
         "data/seasonal-palettes.js",
         "background/color-processor.js",
+        "dist/background-removal-bundle.js",
         "background/background-remover.js",
         "content/content.js",
         "content/overlay.js",
@@ -46,7 +47,14 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "content/eyedropper.js", "content/eyedropper.css"],
+      "resources": [
+        "icons/*",
+        "content/eyedropper.js",
+        "content/eyedropper.css",
+        "dist/*.wasm",
+        "dist/*.mjs",
+        "dist/*.js"
+      ],
       "matches": ["*://*/*"]
     }
   ]

@@ -237,6 +237,46 @@
   }
 
   /**
+   * Crop upper portion of canvas to remove header/background areas
+   * @param {HTMLCanvasElement|HTMLImageElement} source - Canvas or image to crop
+   * @param {number} divisor - Portion to remove (e.g., 6.5 means remove upper 1/6.5)
+   * @returns {HTMLCanvasElement|null} - Cropped canvas or null on error
+   */
+  function cropUpperPortion(source, divisor = 6.5) {
+    try {
+      // Get source dimensions
+      const sourceWidth = source.width || source.naturalWidth;
+      const sourceHeight = source.height || source.naturalHeight;
+
+      if (!sourceWidth || !sourceHeight) {
+        return null;
+      }
+
+      // Calculate crop area (remove upper 1/divisor)
+      const cropTop = Math.floor(sourceHeight / divisor);
+      const croppedHeight = sourceHeight - cropTop;
+
+      // Create new canvas with cropped dimensions
+      const canvas = document.createElement('canvas');
+      canvas.width = sourceWidth;
+      canvas.height = croppedHeight;
+      const ctx = canvas.getContext('2d');
+
+      // Draw cropped portion
+      ctx.drawImage(
+        source,
+        0, cropTop, sourceWidth, croppedHeight, // Source: skip top portion
+        0, 0, sourceWidth, croppedHeight         // Dest: fill canvas
+      );
+
+      return canvas;
+    } catch (e) {
+      console.error('[Season Color Checker] Error cropping image:', e);
+      return null;
+    }
+  }
+
+  /**
    * Check if we can access image data without CORS errors
    * Returns true if the image is accessible, false if CORS-blocked
    */
@@ -421,10 +461,19 @@
         let imageToAnalyze = processableImage;
 
         if (backgroundRemover) {
-          const cleanedCanvas = backgroundRemover.removeBackground(processableImage);
+          // removeBackground with excludeTopPortion=false (we'll crop manually after)
+          const cleanedCanvas = await backgroundRemover.removeBackground(processableImage, false);
           if (cleanedCanvas) {
             console.log('[Season Color Checker] Background removed for color analysis');
-            imageToAnalyze = cleanedCanvas;
+
+            // Crop upper 1/6.5 portion to focus on main product area (after background removal)
+            const croppedCanvas = cropUpperPortion(cleanedCanvas, 6.5);
+            if (croppedCanvas) {
+              console.log('[Season Color Checker] Cropped upper 1/6.5 portion');
+              imageToAnalyze = croppedCanvas;
+            } else {
+              imageToAnalyze = cleanedCanvas;
+            }
           } else {
             console.log('[Season Color Checker] Background removal failed, using original image');
           }
