@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Shop Your Color: Seasonal Color Filter",
   "version": "1.0.0",
-  "description": "Automatically highlights items in your seasonal palette so you can shop with confidence.",
+  "description": "Automatically highlights items in your seasonal palette so you can shop with confidence. May refetch images to analyze colors.",
 
   "permissions": ["storage", "activeTab", "scripting"],
 
@@ -19,6 +19,7 @@
         "libs/color-thief.min.js",
         "data/seasonal-palettes.js",
         "background/color-processor.js",
+        "background/background-remover.js",
         "content/content.js",
         "content/overlay.js",
         "content/eyedropper.js"

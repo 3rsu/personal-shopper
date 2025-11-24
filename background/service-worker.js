@@ -38,10 +38,8 @@ chrome.runtime.onInstalled.addListener((details) => {
       blockedDomains: []
     });
 
-    // Open welcome page
-    chrome.tabs.create({
-      url: chrome.runtime.getURL('popup/popup.html')
-    });
+    // Note: Removed tab creation as popup.html is designed to run as a popup, not a full page
+    // User will click the extension icon to open the popup
   } else if (details.reason === 'update') {
     // Extension updated
     console.log('Season Color Checker updated to version', chrome.runtime.getManifest().version);
@@ -65,6 +63,51 @@ chrome.storage.local.get(['wishlist', 'colorHistory', 'domainStats', 'blockedDom
   // Update badge on startup
   updateBadge();
 });
+
+/**
+ * Fetch image as data URL with timeout
+ * @param {string} url - Image URL to fetch
+ * @param {number} timeout - Timeout in milliseconds (default: 3000)
+ * @returns {Promise<string>} - Data URL of the image
+ */
+async function fetchImageAsDataUrl(url, timeout = 3000) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(Object.assign(new Error('Fetch timeout'), { type: 'timeout' }));
+    }, timeout);
+
+    fetch(url)
+      .then(response => {
+        if (!response.ok) {
+          throw Object.assign(new Error(`HTTP ${response.status}: ${response.statusText}`), { type: 'http' });
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          clearTimeout(timeoutId);
+          resolve(reader.result);
+        };
+        reader.onerror = () => {
+          clearTimeout(timeoutId);
+          reject(Object.assign(new Error('Failed to read image blob'), { type: 'read' }));
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        // Categorize network errors
+        if (error.type) {
+          reject(error);
+        } else if (error.name === 'TypeError') {
+          reject(Object.assign(new Error('Network error: ' + error.message), { type: 'network' }));
+        } else {
+          reject(Object.assign(new Error(error.message), { type: 'unknown' }));
+        }
+      });
+  });
+}
 
 /**
  * Listen for storage changes and update cache
@@ -197,20 +240,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Fetch cross-origin image (if needed)
   if (request.action === 'fetchImage') {
-    fetch(request.url)
-      .then(response => response.blob())
-      .then(blob => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          sendResponse({ success: true, dataUrl: reader.result });
-        };
-        reader.onerror = () => {
-          sendResponse({ success: false, error: 'Failed to read image' });
-        };
-        reader.readAsDataURL(blob);
+    fetchImageAsDataUrl(request.url, 3000)
+      .then(dataUrl => {
+        sendResponse({ success: true, dataUrl });
       })
       .catch(error => {
-        sendResponse({ success: false, error: error.message });
+        sendResponse({ success: false, error: error.message, errorType: error.type || 'unknown' });
       });
     return true; // Keep channel open for async response
   }
@@ -262,8 +297,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Track CORS event from content script
   if (request.action === 'trackCorsEvent') {
-    const { domain, eventType } = request;
-    trackDomainCorsEvent(domain, eventType);
+    const { domain, eventType, method } = request;
+    trackDomainCorsEvent(domain, eventType, method);
     // No response needed - fire and forget
     return false;
   }
@@ -327,39 +362,80 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // Get preferred method for a domain (for caching)
+  if (request.action === 'getPreferredMethod') {
+    const domain = request.domain;
+    const stats = storageCache.domainStats[domain];
+    const preferredMethod = stats?.preferredMethod || null;
+    sendResponse({ preferredMethod });
+    return true;
+  }
+
   return false;
 });
 
 /**
  * Track CORS events for domain statistics
+ * @param {string} domain - Domain name
+ * @param {string} eventType - 'success' or 'failure'
+ * @param {string} method - 'direct', 'crossorigin', 'fetch', or 'all-failed'
  */
-function trackDomainCorsEvent(domain, eventType) {
+function trackDomainCorsEvent(domain, eventType, method = 'direct') {
   if (!domain) return;
 
   // Initialize domain stats if not exists
   if (!storageCache.domainStats[domain]) {
     storageCache.domainStats[domain] = {
-      corsBlocked: 0,
-      lastCheck: Date.now()
+      totalAttempts: 0,
+      directSuccess: 0,
+      crossoriginSuccess: 0,
+      fetchSuccess: 0,
+      totalFailures: 0,
+      lastCheck: Date.now(),
+      preferredMethod: null  // Cache which method works best
     };
   }
 
   const stats = storageCache.domainStats[domain];
   stats.lastCheck = Date.now();
+  stats.totalAttempts++;
 
-  // Update counter
-  if (eventType === 'blocked') {
-    stats.corsBlocked++;
+  // Update counters based on event type and method
+  if (eventType === 'success') {
+    if (method === 'direct') {
+      stats.directSuccess++;
+      stats.preferredMethod = 'direct';
+    } else if (method === 'crossorigin') {
+      stats.crossoriginSuccess++;
+      if (!stats.preferredMethod || stats.preferredMethod === 'direct') {
+        stats.preferredMethod = 'crossorigin';
+      }
+    } else if (method === 'fetch') {
+      stats.fetchSuccess++;
+      if (!stats.preferredMethod) {
+        stats.preferredMethod = 'fetch';
+      }
+    }
+  } else if (eventType === 'failure') {
+    stats.totalFailures++;
   }
 
-  // Auto-block domain if too many CORS failures
-  // Threshold: at least 20 CORS-blocked images
-  const MIN_BLOCKED = 20;
+  // Calculate success rate
+  const successCount = stats.directSuccess + stats.crossoriginSuccess + stats.fetchSuccess;
+  const successRate = stats.totalAttempts > 0 ? (successCount / stats.totalAttempts) : 0;
 
-  if (stats.corsBlocked >= MIN_BLOCKED) {
+  // Auto-block domain if poor success rate
+  // Threshold: < 20% success rate after at least 20 attempts
+  const MIN_ATTEMPTS = 20;
+  const MIN_SUCCESS_RATE = 0.20;
+
+  if (stats.totalAttempts >= MIN_ATTEMPTS && successRate < MIN_SUCCESS_RATE) {
     if (!storageCache.blockedDomains.includes(domain)) {
       storageCache.blockedDomains.push(domain);
-      console.log(`[Season Color Checker] Auto-blocked domain: ${domain} (${stats.corsBlocked} CORS-blocked images)`);
+      console.log(
+        `[Season Color Checker] Auto-blocked domain: ${domain} ` +
+        `(${Math.round(successRate * 100)}% success rate after ${stats.totalAttempts} attempts)`
+      );
 
       // Update badge to show blocked domains count
       updateBadge();

@@ -18,6 +18,7 @@
   };
 
   let colorProcessor = null;
+  let backgroundRemover = null;
   let processedImages = new WeakSet(); // Track actual image elements we've analyzed
   let processedSwatches = new WeakSet(); // Track analyzed swatch elements
   let stats = {
@@ -50,6 +51,14 @@
     } else {
       console.error('[Season Color Checker] ERROR: ColorProcessor not loaded! Check manifest.json');
       return;
+    }
+
+    // Load background remover
+    if (typeof BackgroundRemover !== 'undefined') {
+      backgroundRemover = new BackgroundRemover();
+      console.log('[Season Color Checker] BackgroundRemover initialized');
+    } else {
+      console.warn('[Season Color Checker] WARNING: BackgroundRemover not loaded - will use images without background removal');
     }
 
     // Load settings from background
@@ -251,6 +260,107 @@
   }
 
   /**
+   * 3-Tier Fallback System to handle CORS-blocked images
+   * Tier 1: Try crossorigin="anonymous" + reload
+   * Tier 2: Fetch via service worker as data URL
+   * Tier 3: Show dismissable badge for user action
+   *
+   * @param {HTMLImageElement} img - The image element to process
+   * @param {string} domain - The domain of the image
+   * @returns {Promise<HTMLImageElement|null>} - Returns processable image or null if all methods fail
+   */
+  async function handleCorsImage(img, domain) {
+    const originalSrc = img.src;
+
+    // Check if domain has a preferred method cached
+    let preferredMethod = null;
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'getPreferredMethod',
+        domain: domain
+      });
+      preferredMethod = response?.preferredMethod;
+    } catch (e) {
+      // Continue without cache
+    }
+
+    // Tier 1: Try crossorigin="anonymous" (unless we know it won't work)
+    if (preferredMethod !== 'fetch') {
+      try {
+        console.log('[Season Color Checker] Tier 1: Trying crossorigin="anonymous" for:', originalSrc.substring(0, 80));
+
+        // Clone the image to avoid affecting the original
+        const testImg = new Image();
+        testImg.crossOrigin = 'anonymous';
+
+        await new Promise((resolve, reject) => {
+          testImg.onload = resolve;
+          testImg.onerror = reject;
+          const timeout = setTimeout(() => reject(new Error('Load timeout')), 2000);
+          testImg.src = originalSrc;
+          testImg.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+        });
+
+        // Check if we can now access the data
+        if (canAccessImageData(testImg)) {
+          console.log('[Season Color Checker] ✓ Tier 1 success: crossorigin worked');
+          trackCorsEvent(domain, 'success', 'crossorigin');
+          return testImg;
+        }
+      } catch (e) {
+        console.log('[Season Color Checker] ✗ Tier 1 failed:', e.message);
+      }
+    }
+
+    // Tier 2: Fetch via service worker (unless we know direct works)
+    if (preferredMethod !== 'direct') {
+      try {
+        console.log('[Season Color Checker] Tier 2: Fetching via service worker:', originalSrc.substring(0, 80));
+
+        const response = await chrome.runtime.sendMessage({
+          action: 'fetchImage',
+          url: originalSrc
+        });
+
+        if (response.success && response.dataUrl) {
+          // Create new image from data URL
+          const fetchedImg = new Image();
+          await new Promise((resolve, reject) => {
+            fetchedImg.onload = resolve;
+            fetchedImg.onerror = reject;
+            const timeout = setTimeout(() => reject(new Error('Load timeout')), 2000);
+            fetchedImg.src = response.dataUrl;
+            fetchedImg.onload = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+          });
+
+          console.log('[Season Color Checker] ✓ Tier 2 success: service worker fetch worked');
+          trackCorsEvent(domain, 'success', 'fetch');
+          return fetchedImg;
+        } else {
+          console.log('[Season Color Checker] ✗ Tier 2 failed:', response.error);
+        }
+      } catch (e) {
+        console.log('[Season Color Checker] ✗ Tier 2 failed:', e.message);
+      }
+    }
+
+    // Tier 3: All automatic methods failed - show badge
+    console.log('[Season Color Checker] ✗ All automatic methods failed for:', originalSrc.substring(0, 80));
+    trackCorsEvent(domain, 'failure', 'all-failed');
+
+    // Show dismissable badge (will be implemented next)
+    showCorsBadge(img);
+
+    return null;
+  }
+
+  /**
    * Process a single image
    */
   async function processImage(img) {
@@ -280,25 +390,48 @@
       }
 
       // Pre-check: Can we access this image's pixel data?
+      let processableImage = img;
       if (!canAccessImageData(img)) {
-        console.log('[Season Color Checker] CORS blocked, skipping:', img.src.substring(0, 80));
+        console.log('[Season Color Checker] CORS detected, trying fallback methods:', img.src.substring(0, 80));
 
-        // Track CORS-blocked domain for statistics
+        // Get domain for tracking
+        const domain = getDomainFromUrl(img.src);
+
+        // Try 3-tier fallback system
+        processableImage = await handleCorsImage(img, domain);
+
+        // If all methods failed, return
+        if (!processableImage) {
+          stats.totalImages--; // Don't count this image
+          return;
+        }
+      } else {
+        // Direct access works - track success
         const domain = getDomainFromUrl(img.src);
         if (domain) {
-          trackCorsEvent(domain, 'blocked');
+          trackCorsEvent(domain, 'success', 'direct');
         }
-
-        stats.totalImages--; // Don't count this image
-        return;
       }
 
       const colorThief = new ColorThief();
       let dominantColors;
 
       try {
-        // Safe to proceed - image is accessible
-        dominantColors = colorThief.getPalette(img, 5);
+        // Remove background before color extraction
+        let imageToAnalyze = processableImage;
+
+        if (backgroundRemover) {
+          const cleanedCanvas = backgroundRemover.removeBackground(processableImage);
+          if (cleanedCanvas) {
+            console.log('[Season Color Checker] Background removed for color analysis');
+            imageToAnalyze = cleanedCanvas;
+          } else {
+            console.log('[Season Color Checker] Background removal failed, using original image');
+          }
+        }
+
+        // Extract colors from cleaned image (or original if background removal failed)
+        dominantColors = colorThief.getPalette(imageToAnalyze, 5);
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -798,16 +931,132 @@
   }
 
   /**
+   * Show dismissable CORS badge on image
+   * Displays when all automatic CORS workarounds fail
+   */
+  function showCorsBadge(img) {
+    // Check if badge already exists for this image
+    if (img.dataset.corsBadgeShown === 'true') {
+      return;
+    }
+
+    // Check if user has dismissed badges for this domain
+    const domain = getDomainFromUrl(img.src);
+    const dismissedDomains = JSON.parse(localStorage.getItem('seasonColorChecker_dismissedDomains') || '[]');
+    if (dismissedDomains.includes(domain)) {
+      return;
+    }
+
+    // Mark this image as having a badge
+    img.dataset.corsBadgeShown = 'true';
+
+    // Ensure image parent has position relative
+    const parent = img.parentElement;
+    if (parent && getComputedStyle(parent).position === 'static') {
+      parent.style.position = 'relative';
+    }
+
+    // Create badge container
+    const badge = document.createElement('div');
+    badge.className = 'season-color-checker-cors-badge';
+    badge.innerHTML = `
+      <div class="scc-badge-content">
+        <span class="scc-badge-icon">🔒</span>
+        <span class="scc-badge-text">Can't analyze</span>
+        <button class="scc-badge-action" title="Try color picker">🎨</button>
+        <button class="scc-badge-close" title="Dismiss">×</button>
+      </div>
+    `;
+
+    // Position badge relative to image
+    badge.style.cssText = `
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(255, 107, 107, 0.95);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: system-ui, -apple-system, sans-serif;
+      z-index: 10000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+    `;
+
+    // Add event listeners
+    const closeBtn = badge.querySelector('.scc-badge-close');
+    const actionBtn = badge.querySelector('.scc-badge-action');
+
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      badge.remove();
+    };
+
+    actionBtn.onclick = async (e) => {
+      e.stopPropagation();
+
+      // Launch EyeDropper if available
+      if (window.EyeDropper) {
+        try {
+          const eyeDropper = new EyeDropper();
+          const result = await eyeDropper.open();
+
+          // Send color to background for checking
+          chrome.runtime.sendMessage({
+            action: 'checkColorFromPicker',
+            color: result.sRGBHex,
+            season: settings.selectedSeason
+          });
+
+          badge.remove();
+        } catch (err) {
+          console.log('[Season Color Checker] EyeDropper cancelled or failed');
+        }
+      }
+    };
+
+    // Add "Don't show on this site" option on right-click
+    badge.oncontextmenu = (e) => {
+      e.preventDefault();
+      if (confirm(`Don't show CORS warnings on ${domain}?`)) {
+        dismissedDomains.push(domain);
+        localStorage.setItem('seasonColorChecker_dismissedDomains', JSON.stringify(dismissedDomains));
+
+        // Remove all badges on this domain
+        document.querySelectorAll('.season-color-checker-cors-badge').forEach(b => b.remove());
+      }
+    };
+
+    // Insert badge (prefer parent for better positioning, fallback to body)
+    if (parent && parent !== document.body) {
+      parent.style.position = 'relative';
+      parent.appendChild(badge);
+    } else {
+      // Fallback: position fixed relative to image position
+      const rect = img.getBoundingClientRect();
+      badge.style.position = 'fixed';
+      badge.style.top = `${rect.top + 8}px`;
+      badge.style.left = `${rect.left + 8}px`;
+      document.body.appendChild(badge);
+    }
+  }
+
+  /**
    * Track CORS event (notify service worker) - non-blocking
    */
-  function trackCorsEvent(domain, eventType) {
+  function trackCorsEvent(domain, eventType, method = 'direct') {
     if (!domain) return;
 
     // Send to service worker for tracking (fire and forget - don't wait for response)
     chrome.runtime.sendMessage({
       action: 'trackCorsEvent',
       domain: domain,
-      eventType: eventType
+      eventType: eventType,
+      method: method
     }).catch(() => {
       // Ignore errors - tracking is optional
     });
