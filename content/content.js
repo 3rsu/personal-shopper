@@ -16,6 +16,7 @@
     selectedSeason: null,
     filterEnabled: true,
     faceDetectionEnabled: true, // Enable face/skin/hair detection
+    textColorEnhancementEnabled: true // Enable text-based color enhancement
   };
 
   let colorProcessor = null;
@@ -890,14 +891,52 @@
         // Step 4: Filter out background and desaturated colors
         dominantColors = filterBackgroundColors(rawColors, backgroundColor);
 
-        // Take top 5 after filtering
-        dominantColors = dominantColors.slice(0, 5);
-
         console.log(
           '[Season Color Checker] Filtered palette:',
           dominantColors.length,
           'colors after background removal',
         );
+
+        // NEW Step 5: Extract text color mentions and apply weighting
+        if (settings.textColorEnhancementEnabled && typeof extractColorKeywordsFromDOM === 'function') {
+          try {
+            const textColorMentions = extractColorKeywordsFromDOM(img);
+
+            if (textColorMentions && textColorMentions.length > 0) {
+              console.log('[Season Color Checker] Found text color mentions:', textColorMentions.map(m => m.keyword).join(', '));
+
+              // Apply text-based weighting to palette
+              if (typeof applyTextColorWeighting === 'function') {
+                const weightedPalette = applyTextColorWeighting(dominantColors, textColorMentions, colorProcessor);
+
+                // Use selectFinalPalette to ensure text-matched colors are preserved
+                if (typeof selectFinalPalette === 'function') {
+                  // Select final palette with guaranteed slots for text-matched colors
+                  dominantColors = selectFinalPalette(weightedPalette, 5, 2);
+                } else {
+                  // Fallback: simple slice (old behavior)
+                  dominantColors = weightedPalette.map(item => item.rgb).slice(0, 5);
+                }
+
+                // Optionally augment palette with high-confidence text colors not in visual palette
+                if (typeof augmentPaletteWithTextColors === 'function') {
+                  dominantColors = augmentPaletteWithTextColors(dominantColors, textColorMentions, colorProcessor, 2);
+                }
+              }
+            } else {
+              // No text colors found, just take top 5
+              dominantColors = dominantColors.slice(0, 5);
+            }
+          } catch (textError) {
+            console.log('[Season Color Checker] Text color extraction failed:', textError.message);
+            // Continue without text enhancement - not critical
+            dominantColors = dominantColors.slice(0, 5);
+          }
+        } else {
+          // Text enhancement disabled, just take top 5
+          dominantColors = dominantColors.slice(0, 5);
+        }
+
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -1142,7 +1181,7 @@
         badge.innerHTML = `✓`;
         badge.classList.add('match');
       } else {
-        badge.innerHTML = `✗`;
+        badge.innerHTML = `˟`;
         badge.classList.add('no-match');
       }
     } else {
