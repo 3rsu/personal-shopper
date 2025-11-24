@@ -199,10 +199,11 @@
    */
   function findAndProcessImages() {
     const images = findProductImages();
+    const pageType = detectPageType(images);
 
     images.forEach((img) => {
       if (!processedImages.has(img)) {
-        processImage(img);
+        processImage(img, pageType);
       }
     });
 
@@ -476,7 +477,7 @@
       // Filter out colors similar to background (deltaE < 15)
       if (backgroundColor) {
         const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
-        if (deltaE < 15) {
+        if (deltaE < 30) {
           return false;
         }
       }
@@ -825,7 +826,7 @@
   /**
    * Process a single image
    */
-  async function processImage(img) {
+  async function processImage(img, pageType = 'detail') {
     // Mark as processed (track the element itself, not the src)
     processedImages.add(img);
     stats.totalImages++;
@@ -853,16 +854,21 @@
       // ========================================
       if (typeof findSelectedSwatchForImage === 'function') {
         try {
-          const selectedSwatch = findSelectedSwatchForImage(img);
+          const selectedSwatch = findSelectedSwatchForImage(img, pageType);
 
           if (selectedSwatch) {
             const swatchColor = extractSwatchColor(selectedSwatch);
 
-            if (swatchColor && swatchColor.confidence >= 0.7) {
+            // On listing pages, use lower confidence threshold (prefer swatches over image analysis)
+            const confidenceThreshold = pageType === 'listing' ? 0.3 : 0.7;
+
+            if (swatchColor && swatchColor.confidence >= confidenceThreshold) {
               // High-confidence swatch detected! Skip ColorThief processing
               const processingTime = (performance.now() - startTime).toFixed(1);
               console.log(
-                `[Season Color Checker] 🎨 Using website swatch (${swatchColor.source}, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
+                `[Season Color Checker] 🎨 Using website swatch (${
+                  swatchColor.source
+                }, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
               );
               console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
 
@@ -906,7 +912,9 @@
               return; // EARLY EXIT - Skip ColorThief entirely
             } else if (swatchColor) {
               console.log(
-                `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(2)} < 0.7), falling back to ColorThief`,
+                `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(
+                  2,
+                )} < ${confidenceThreshold}), falling back to ColorThief`,
               );
             }
           }
@@ -1051,96 +1059,102 @@
           dominantColors = dominantColors.slice(0, 5);
         }
 
-        // NEW Step 6: Detect and use selected swatch color for matching (universal e-commerce)
-        if (typeof findSelectedSwatchForImage === 'function') {
-          try {
-            const selectedSwatch = findSelectedSwatchForImage(img);
+        // // NEW Step 6: Detect and use selected swatch color for matching (universal e-commerce)
+        // if (typeof findSelectedSwatchForImage === 'function') {
+        //   try {
+        //     const selectedSwatch = findSelectedSwatchForImage(img, pageType);
 
-            if (selectedSwatch) {
-              const swatchColor = extractSwatchColor(selectedSwatch);
+        //     if (selectedSwatch) {
+        //       const swatchColor = extractSwatchColor(selectedSwatch);
 
-              // Use swatch for matching if confidence >= 0.3 (30%)
-              if (swatchColor && swatchColor.confidence >= 0.3) {
-                const processingTime = (performance.now() - startTime).toFixed(1);
-                console.log(
-                  `[Season Color Checker] 🎨 Using website swatch for matching (${swatchColor.source}, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
-                );
-                console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
+        //       // Use swatch for matching if confidence >= 0.3 (30%)
+        //       if (swatchColor && swatchColor.confidence >= 0.3) {
+        //         const processingTime = (performance.now() - startTime).toFixed(1);
+        //         console.log(
+        //           `[Season Color Checker] 🎨 Using website swatch for matching (${
+        //             swatchColor.source
+        //           }, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
+        //         );
+        //         console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
 
-                // Get season palette
-                const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
-                if (!seasonPalette) {
-                  console.warn(
-                    '[Season Color Checker] Invalid season selected:',
-                    settings.selectedSeason,
-                  );
-                  return;
-                }
+        //         // Get season palette
+        //         const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
+        //         if (!seasonPalette) {
+        //           console.warn(
+        //             '[Season Color Checker] Invalid season selected:',
+        //             settings.selectedSeason,
+        //           );
+        //           return;
+        //         }
 
-                // Use findClosestMatch for simple binary matching (SWATCH ONLY)
-                const matchResult = colorProcessor.findClosestMatch(
-                  swatchColor.hex,
-                  seasonPalette.colors,
-                );
+        //         // Use findClosestMatch for simple binary matching (SWATCH ONLY)
+        //         const matchResult = colorProcessor.findClosestMatch(
+        //           swatchColor.hex,
+        //           seasonPalette.colors,
+        //         );
 
-                // Store swatch data on element
-                img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
-                img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
-                img.dataset.selectedSwatchColor = swatchColor.hex;
-                img.dataset.selectedSwatchSource = swatchColor.source;
+        //         // Store swatch data on element
+        //         img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
+        //         img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
+        //         img.dataset.selectedSwatchColor = swatchColor.hex;
+        //         img.dataset.selectedSwatchSource = swatchColor.source;
 
-                // Build display palette: swatch + top 2 ColorThief colors (for visual reference only)
-                const colorThiefHexes = dominantColors
-                  .slice(0, 3)
-                  .map((rgb) => colorProcessor.rgbToHex(rgb));
+        //         // Build display palette: swatch + top 2 ColorThief colors (for visual reference only)
+        //         const colorThiefHexes = dominantColors
+        //           .slice(0, 3)
+        //           .map((rgb) => colorProcessor.rgbToHex(rgb));
 
-                // Filter out colors too similar to swatch
-                const uniqueColors = colorThiefHexes.filter((hex) => {
-                  const deltaE = colorProcessor.calculateDeltaE(
-                    colorProcessor.hexToRgb(hex),
-                    colorProcessor.hexToRgb(swatchColor.hex),
-                  );
-                  return deltaE >= 15;
-                });
+        //         // Filter out colors too similar to swatch
+        //         const uniqueColors = colorThiefHexes.filter((hex) => {
+        //           const deltaE = colorProcessor.calculateDeltaE(
+        //             colorProcessor.hexToRgb(hex),
+        //             colorProcessor.hexToRgb(swatchColor.hex),
+        //           );
+        //           return deltaE >= 15;
+        //         });
 
-                const displayColors = [swatchColor.hex, ...uniqueColors.slice(0, 2)];
-                img.dataset.dominantColors = JSON.stringify(displayColors);
-                img.dataset.swatchOnly = 'true'; // Flag for display logic
+        //         const displayColors = [swatchColor.hex, ...uniqueColors.slice(0, 2)];
+        //         img.dataset.dominantColors = JSON.stringify(displayColors);
+        //         img.dataset.swatchOnly = 'true'; // Flag for display logic
 
-                // Apply simplified filter (match or no-match only)
-                applySwatchOnlyFilter(img, matchResult, swatchColor);
+        //         // Apply simplified filter (match or no-match only)
+        //         applySwatchOnlyFilter(img, matchResult, swatchColor);
 
-                // Update stats
-                if (matchResult.isMatch) {
-                  stats.matchingImages++;
-                }
+        //         // Update stats
+        //         if (matchResult.isMatch) {
+        //           stats.matchingImages++;
+        //         }
 
-                console.log(
-                  `[Season Color Checker] ✓ Swatch-only matching complete (${matchResult.isMatch ? 'MATCH' : 'NO MATCH'})`,
-                );
+        //         console.log(
+        //           `[Season Color Checker] ✓ Swatch-only matching complete (${
+        //             matchResult.isMatch ? 'MATCH' : 'NO MATCH'
+        //           })`,
+        //         );
 
-                return; // EARLY EXIT - Skip complex season detection
-              } else if (swatchColor) {
-                console.log(
-                  `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(2)} < 0.3), using ColorThief only`,
-                );
-                // Store swatch for display purposes but don't use for matching
-                img.dataset.selectedSwatchColor = swatchColor.hex;
-                img.dataset.selectedSwatchSource = swatchColor.source;
+        //         return; // EARLY EXIT - Skip complex season detection
+        //       } else if (swatchColor) {
+        //         console.log(
+        //           `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(
+        //             2,
+        //           )} < 0.3), using ColorThief only`,
+        //         );
+        //         // Store swatch for display purposes but don't use for matching
+        //         img.dataset.selectedSwatchColor = swatchColor.hex;
+        //         img.dataset.selectedSwatchSource = swatchColor.source;
 
-                // Apply swatch priority weighting to boost matching colors in ColorThief palette
-                dominantColors = applySwatchPriorityWeighting(
-                  dominantColors,
-                  swatchColor,
-                  colorProcessor,
-                );
-              }
-            }
-          } catch (swatchError) {
-            console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
-            // Continue with ColorThief-only processing
-          }
-        }
+        //         // Apply swatch priority weighting to boost matching colors in ColorThief palette
+        //         dominantColors = applySwatchPriorityWeighting(
+        //           dominantColors,
+        //           swatchColor,
+        //           colorProcessor,
+        //         );
+        //       }
+        //     }
+        //   } catch (swatchError) {
+        //     console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
+        //     // Continue with ColorThief-only processing
+        //   }
+        // }
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -1185,12 +1199,6 @@
         }
       }
 
-      // Detect which season(s) the product belongs to
-      const productSeasonResult = colorProcessor.detectProductSeason(
-        dominantColors,
-        SEASONAL_PALETTES,
-      );
-
       // Get current season's palette for user comparison
       const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
       if (!seasonPalette) {
@@ -1202,6 +1210,11 @@
         return;
       }
 
+      // Detect which season(s) the product belongs to
+      const productSeasonResult = colorProcessor.detectProductSeason(
+        dominantColors,
+        SEASONAL_PALETTES,
+      );
       // Analyze compatibility with user's season
       const compatibility = colorProcessor.analyzeSeasonCompatibility(
         productSeasonResult,
@@ -1255,13 +1268,13 @@
       });
 
       // Store skin tone and hair color if detected
-      if (skinTone) {
-        img.dataset.skinTone = colorProcessor.rgbToHex(skinTone);
-      }
-      if (hairColor) {
-        img.dataset.hairColor = colorProcessor.rgbToHex(hairColor);
-      }
-
+      // if (skinTone) {
+      //   img.dataset.skinTone = colorProcessor.rgbToHex(skinTone);
+      // }
+      // if (hairColor) {
+      //   img.dataset.hairColor = colorProcessor.rgbToHex(hairColor);
+      // }
+      console.log('Skin Tone', skinTone, 'Hair Color', hairColor);
       // Apply visual filter based on compatibility
       applyFilter(img, matchResult, productSeasonResult, compatibility);
 
@@ -1573,7 +1586,9 @@
     if (matchResult.isMatch) {
       tooltip = `✓ ${swatchColor.hex} matches your ${settings.selectedSeason} palette\n`;
       tooltip += `Color from website (${swatchColor.source})\n`;
-      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (${matchResult.deltaE < 5 ? 'excellent' : matchResult.deltaE < 10 ? 'good' : 'acceptable'} match)`;
+      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (${
+        matchResult.deltaE < 5 ? 'excellent' : matchResult.deltaE < 10 ? 'good' : 'acceptable'
+      } match)`;
     } else {
       tooltip = `✗ ${swatchColor.hex} doesn't match your ${settings.selectedSeason} palette\n`;
       tooltip += `Color from website (${swatchColor.source})\n`;
@@ -1682,13 +1697,17 @@
 
     if (pageType === 'listing') {
       console.log(
-        '[Season Color Checker] Skipping swatch detection on listing page (' + images.length + ' images)',
+        '[Season Color Checker] Skipping swatch detection on listing page (' +
+          images.length +
+          ' images)',
       );
       return;
     }
 
     console.log(
-      '[Season Color Checker] Detail page detected (' + images.length + ' images), processing swatches',
+      '[Season Color Checker] Detail page detected (' +
+        images.length +
+        ' images), processing swatches',
     );
 
     // Find and process color swatches

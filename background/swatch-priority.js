@@ -15,9 +15,10 @@
  * Uses universal multi-tier detection strategy based on e-commerce research
  *
  * @param {HTMLImageElement} img - Product image element
+ * @param {string} pageType - 'detail' or 'listing' (optional)
  * @returns {Element|null} - Selected swatch element, or null if not found
  */
-function findSelectedSwatchForImage(img) {
+function findSelectedSwatchForImage(img, pageType) {
   // Find product container (limit scope to avoid false positives)
   const container = findProductContainer(img);
   if (!container) {
@@ -65,6 +66,16 @@ function findSelectedSwatchForImage(img) {
     return selected;
   }
 
+  // Tier 6: First relative swatch (listing page fallback)
+  // When no explicit selection found on listing pages, use first swatch
+  if (pageType === 'listing') {
+    selected = findFirstRelativeSwatch(container, img);
+    if (selected) {
+      console.log('[Swatch Priority] Using first relative swatch (Tier 6 - listing page fallback)');
+      return selected;
+    }
+  }
+
   console.log('[Swatch Priority] No selected swatch detected');
   return null;
 }
@@ -77,6 +88,8 @@ function findSelectedSwatchForImage(img) {
 function findProductContainer(img) {
   // Try common product container patterns
   const containerSelectors = [
+    '[data-testid*="product-tile"]', // Aritzia and similar sites
+    '[data-testid*="plp-product"]', // Product listing page patterns
     '[class*="product"]',
     '[data-product-id]',
     '[data-product]',
@@ -324,6 +337,16 @@ function findByVisualStyles(container) {
   );
 
   for (const element of potentialSwatches) {
+    // Skip elements from the season checker extension itself
+    if (
+      element.classList.contains('season-color-swatch') ||
+      element.classList.contains('season-badge') ||
+      element.classList.contains('season-filter-container') ||
+      element.closest('.season-filter-container')
+    ) {
+      continue;
+    }
+
     if (!isValidSwatchElement(element)) continue;
 
     const styles = window.getComputedStyle(element);
@@ -350,6 +373,275 @@ function findByVisualStyles(container) {
     const transform = styles.transform;
     if (transform !== 'none' && transform.includes('scale')) {
       return element;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find swatches by visual layout pattern (generic approach)
+ * Detects rows of similar-sized small images - works across all e-commerce sites
+ * @param {Element} container - Product container
+ * @param {HTMLImageElement} productImage - The product image to find swatches for
+ * @returns {Element|null} - First swatch image from a valid swatch row near the product
+ */
+function findSwatchesByLayout(container, productImage) {
+  console.log('[Swatch Priority] Detecting swatches by visual layout...');
+
+  // Get product image position for spatial filtering
+  const productRect = productImage.getBoundingClientRect();
+  console.log(`[Swatch Priority] Product image at: x=${Math.round(productRect.left)}, y=${Math.round(productRect.top)}, bottom=${Math.round(productRect.bottom)}`);
+
+  // Find all images in container
+  const allImages = Array.from(container.querySelectorAll('img'));
+
+  // Filter to small images (potential swatches: 10-100px)
+  const smallImages = allImages.filter(img => {
+    const width = img.offsetWidth || img.width;
+    const height = img.offsetHeight || img.height;
+    return width >= 10 && width <= 100 && height >= 10 && height <= 100;
+  });
+
+  console.log(`[Swatch Priority] Found ${smallImages.length} small images (10-100px)`);
+
+  if (smallImages.length < 3) {
+    console.log('[Swatch Priority] Not enough small images for swatch detection');
+    return null;
+  }
+
+  // Group images by Y-coordinate (rows)
+  const rows = {};
+  smallImages.forEach(img => {
+    const rect = img.getBoundingClientRect();
+    const y = Math.round(rect.top / 10) * 10; // Group within 10px tolerance
+
+    if (!rows[y]) rows[y] = [];
+    rows[y].push({
+      element: img,
+      width: img.offsetWidth || img.width,
+      height: img.offsetHeight || img.height,
+      x: rect.left,
+      y: rect.top,
+      rect: rect
+    });
+  });
+
+  console.log(`[Swatch Priority] Grouped into ${Object.keys(rows).length} horizontal rows`);
+
+  // Find valid swatch rows that are spatially near this product
+  const validRows = [];
+
+  for (const y in rows) {
+    const rowImages = rows[y];
+
+    if (rowImages.length < 3) continue;
+
+    // Sort by X coordinate (left to right)
+    rowImages.sort((a, b) => a.x - b.x);
+
+    // Check if images are similar size
+    const avgWidth = rowImages.reduce((sum, img) => sum + img.width, 0) / rowImages.length;
+    const avgHeight = rowImages.reduce((sum, img) => sum + img.height, 0) / rowImages.length;
+
+    const similarSize = rowImages.every(img => {
+      const widthDiff = Math.abs(img.width - avgWidth);
+      const heightDiff = Math.abs(img.height - avgHeight);
+      return widthDiff <= 5 && heightDiff <= 5; // 5px tolerance
+    });
+
+    if (!similarSize) {
+      console.log(`[Swatch Priority] Row at y=${y}: images not similar size (avg ${avgWidth}x${avgHeight})`);
+      continue;
+    }
+
+    // Check if images are square-ish (aspect ratio 0.8 - 1.2)
+    const squareIsh = rowImages.every(img => {
+      const aspectRatio = img.width / img.height;
+      return aspectRatio >= 0.8 && aspectRatio <= 1.2;
+    });
+
+    if (!squareIsh) {
+      console.log(`[Swatch Priority] Row at y=${y}: images not square-ish`);
+      continue;
+    }
+
+    // Valid swatch row found! Now check spatial proximity to product image
+    const rowY = rowImages[0].y;
+    const rowX = rowImages[0].x;
+    const rowRight = rowImages[rowImages.length - 1].rect.right;
+
+    // Check if row is below product image (swatches typically below product)
+    const isBelow = rowY > productRect.bottom;
+
+    // Check if row is within reasonable vertical distance (within 300px)
+    const verticalDistance = Math.abs(rowY - productRect.bottom);
+    const isNearby = verticalDistance < 300;
+
+    // Check if row has horizontal overlap with product (±100px tolerance)
+    const hasHorizontalOverlap =
+      (rowX >= productRect.left - 100 && rowX <= productRect.right + 100) ||
+      (rowRight >= productRect.left - 100 && rowRight <= productRect.right + 100) ||
+      (rowX <= productRect.left && rowRight >= productRect.right);
+
+    if (isBelow && isNearby && hasHorizontalOverlap) {
+      console.log(`[Swatch Priority] ✓ Found valid swatch row: ${rowImages.length} images, ${Math.round(avgWidth)}x${Math.round(avgHeight)}px, distance=${Math.round(verticalDistance)}px`);
+      validRows.push({
+        images: rowImages,
+        distance: verticalDistance,
+        y: rowY
+      });
+    } else {
+      console.log(`[Swatch Priority] Row at y=${y}: not near product (below=${isBelow}, nearby=${isNearby}, overlap=${hasHorizontalOverlap}, dist=${Math.round(verticalDistance)}px)`);
+    }
+  }
+
+  // Return the closest valid swatch row
+  if (validRows.length > 0) {
+    validRows.sort((a, b) => a.distance - b.distance);
+    const closestRow = validRows[0];
+    console.log(`[Swatch Priority] Using closest swatch row at y=${Math.round(closestRow.y)}, distance=${Math.round(closestRow.distance)}px`);
+    return closestRow.images[0].element;
+  }
+
+  console.log('[Swatch Priority] No valid swatch rows near this product');
+  return null;
+}
+
+/**
+ * Tier 6: Find first relative swatch in container (listing page fallback)
+ * Used when no explicit selection is detected on product listing pages
+ * @param {Element} container - Product container
+ * @param {HTMLImageElement} productImage - The product image to find swatches for
+ * @returns {Element|null} - First valid swatch element
+ */
+function findFirstRelativeSwatch(container, productImage) {
+  console.log('[Swatch Priority] DEBUG: Searching for swatches in container:', container);
+
+  // FIRST: Try visual layout detection (most generic, works everywhere)
+  const layoutSwatch = findSwatchesByLayout(container, productImage);
+  if (layoutSwatch) {
+    console.log('[Swatch Priority] Found swatch via layout detection:', layoutSwatch);
+    return layoutSwatch;
+  }
+
+  // Helper function to check if element is from the extension
+  const isExtensionElement = (element) => {
+    return (
+      element.classList.contains('season-color-swatch') ||
+      element.classList.contains('season-badge') ||
+      element.classList.contains('season-filter-container') ||
+      element.closest('.season-filter-container')
+    );
+  };
+
+  // Common swatch selectors ordered by likelihood
+  const swatchSelectors = [
+    // Images within swatch containers
+    '[class*="swatch"] img',
+    '[class*="color-option"] img',
+    '[class*="variant"] img',
+
+    // Swatch elements themselves
+    '[class*="swatch"]',
+    '[class*="color-option"]',
+    '[class*="color-swatch"]',
+    '[class*="variant-option"]',
+
+    // Button/link patterns
+    'button[class*="swatch"]',
+    'a[class*="swatch"]',
+    'button[class*="color"]',
+    'a[class*="color"]',
+  ];
+
+  // First pass: Try to find swatches in the container using standard selectors
+  for (const selector of swatchSelectors) {
+    try {
+      const swatches = container.querySelectorAll(selector);
+      console.log(`[Swatch Priority] DEBUG: Selector "${selector}" found ${swatches.length} elements`);
+
+      for (const swatch of swatches) {
+        // Skip extension elements
+        if (isExtensionElement(swatch)) {
+          console.log('[Swatch Priority] DEBUG: Skipping extension element:', swatch);
+          continue;
+        }
+
+        // Skip disabled/sold-out swatches
+        if (
+          swatch.classList.contains('disabled') ||
+          swatch.classList.contains('is-disabled-option') ||
+          swatch.classList.contains('sold-out') ||
+          swatch.hasAttribute('disabled')
+        ) {
+          console.log('[Swatch Priority] DEBUG: Skipping disabled swatch:', swatch);
+          continue;
+        }
+
+        // Validate swatch
+        const isValid = isValidSwatchElement(swatch);
+        console.log(`[Swatch Priority] DEBUG: Element validation = ${isValid}:`, swatch, {
+          offsetWidth: swatch.offsetWidth,
+          offsetHeight: swatch.offsetHeight,
+          offsetParent: swatch.offsetParent
+        });
+
+        if (isValid) {
+          console.log('[Swatch Priority] Found first relative swatch (standard):', swatch);
+          return swatch;
+        }
+      }
+    } catch (e) {
+      // Invalid selector, continue
+      console.log(`[Swatch Priority] DEBUG: Error with selector "${selector}":`, e.message);
+      continue;
+    }
+  }
+
+  // Safety check: Look through first 2 product images and their descendants
+  console.log('[Swatch Priority] Standard selectors failed, trying image descendants...');
+  const productImages = container.querySelectorAll('img');
+  const imagesToCheck = Array.from(productImages).slice(0, 2);
+
+  for (const img of imagesToCheck) {
+    // Check the image's parent chain (up to 3 levels) for swatch containers
+    let current = img.parentElement;
+    let depth = 0;
+
+    while (current && depth < 3 && current !== container) {
+      // Look for swatches within this level
+      for (const selector of swatchSelectors) {
+        try {
+          const swatches = current.querySelectorAll(selector);
+
+          for (const swatch of swatches) {
+            // Skip extension elements
+            if (isExtensionElement(swatch)) continue;
+
+            // Skip disabled/sold-out swatches
+            if (
+              swatch.classList.contains('disabled') ||
+              swatch.classList.contains('is-disabled-option') ||
+              swatch.classList.contains('sold-out') ||
+              swatch.hasAttribute('disabled')
+            ) {
+              continue;
+            }
+
+            // Validate swatch
+            if (isValidSwatchElement(swatch)) {
+              console.log('[Swatch Priority] Found first relative swatch (image descendant):', swatch);
+              return swatch;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      current = current.parentElement;
+      depth++;
     }
   }
 
