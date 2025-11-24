@@ -1022,7 +1022,7 @@
           dominantColors = dominantColors.slice(0, 5);
         }
 
-        // NEW Step 6: Detect and prioritize selected swatch color (universal e-commerce)
+        // NEW Step 6: Detect and use selected swatch color for matching (universal e-commerce)
         if (typeof findSelectedSwatchForImage === 'function') {
           try {
             const selectedSwatch = findSelectedSwatchForImage(img);
@@ -1030,28 +1030,86 @@
             if (selectedSwatch) {
               const swatchColor = extractSwatchColor(selectedSwatch);
 
-              if (swatchColor) {
+              // Use swatch for matching if confidence >= 0.3 (30%)
+              if (swatchColor && swatchColor.confidence >= 0.3) {
+                const processingTime = (performance.now() - startTime).toFixed(1);
                 console.log(
-                  '[Season Color Checker] Found selected swatch:',
+                  `[Season Color Checker] 🎨 Using website swatch for matching (${swatchColor.source}, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
+                );
+                console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
+
+                // Get season palette
+                const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
+                if (!seasonPalette) {
+                  console.warn(
+                    '[Season Color Checker] Invalid season selected:',
+                    settings.selectedSeason,
+                  );
+                  return;
+                }
+
+                // Use findClosestMatch for simple binary matching (SWATCH ONLY)
+                const matchResult = colorProcessor.findClosestMatch(
                   swatchColor.hex,
-                  `(${swatchColor.source}, confidence: ${swatchColor.confidence})`,
+                  seasonPalette.colors,
                 );
 
-                // Apply swatch priority weighting to boost matching colors
+                // Store swatch data on element
+                img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
+                img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
+                img.dataset.selectedSwatchColor = swatchColor.hex;
+                img.dataset.selectedSwatchSource = swatchColor.source;
+
+                // Build display palette: swatch + top 2 ColorThief colors (for visual reference only)
+                const colorThiefHexes = dominantColors
+                  .slice(0, 3)
+                  .map((rgb) => colorProcessor.rgbToHex(rgb));
+
+                // Filter out colors too similar to swatch
+                const uniqueColors = colorThiefHexes.filter((hex) => {
+                  const deltaE = colorProcessor.calculateDeltaE(
+                    colorProcessor.hexToRgb(hex),
+                    colorProcessor.hexToRgb(swatchColor.hex),
+                  );
+                  return deltaE >= 15;
+                });
+
+                const displayColors = [swatchColor.hex, ...uniqueColors.slice(0, 2)];
+                img.dataset.dominantColors = JSON.stringify(displayColors);
+                img.dataset.swatchOnly = 'true'; // Flag for display logic
+
+                // Apply simplified filter (match or no-match only)
+                applySwatchOnlyFilter(img, matchResult, swatchColor);
+
+                // Update stats
+                if (matchResult.isMatch) {
+                  stats.matchingImages++;
+                }
+
+                console.log(
+                  `[Season Color Checker] ✓ Swatch-only matching complete (${matchResult.isMatch ? 'MATCH' : 'NO MATCH'})`,
+                );
+
+                return; // EARLY EXIT - Skip complex season detection
+              } else if (swatchColor) {
+                console.log(
+                  `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(2)} < 0.3), using ColorThief only`,
+                );
+                // Store swatch for display purposes but don't use for matching
+                img.dataset.selectedSwatchColor = swatchColor.hex;
+                img.dataset.selectedSwatchSource = swatchColor.source;
+
+                // Apply swatch priority weighting to boost matching colors in ColorThief palette
                 dominantColors = applySwatchPriorityWeighting(
                   dominantColors,
                   swatchColor,
                   colorProcessor,
                 );
-
-                // Store the selected swatch color for display (will be inserted at position #1)
-                img.dataset.selectedSwatchColor = swatchColor.hex;
-                img.dataset.selectedSwatchSource = swatchColor.source;
               }
             }
           } catch (swatchError) {
-            console.log('[Season Color Checker] Swatch priority failed:', swatchError.message);
-            // Continue without swatch enhancement - not critical
+            console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
+            // Continue with ColorThief-only processing
           }
         }
       } catch (e) {
