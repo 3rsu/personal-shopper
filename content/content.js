@@ -8,13 +8,14 @@
  * - Lazy loading for performance
  */
 
-(function() {
+(function () {
   'use strict';
 
   // State
   let settings = {
     selectedSeason: null,
-    filterEnabled: true
+    filterEnabled: true,
+    faceDetectionEnabled: true, // Enable face/skin/hair detection
   };
 
   let colorProcessor = null;
@@ -24,7 +25,7 @@
     totalImages: 0,
     matchingImages: 0,
     totalSwatches: 0,
-    matchingSwatches: 0
+    matchingSwatches: 0,
   };
 
   // Inactivity timer for auto-detection
@@ -40,13 +41,21 @@
 
     // Check dependencies
     console.log('[Season Color Checker] ColorThief available:', typeof ColorThief !== 'undefined');
-    console.log('[Season Color Checker] SEASONAL_PALETTES available:', typeof SEASONAL_PALETTES !== 'undefined');
-    console.log('[Season Color Checker] ColorProcessor available:', typeof ColorProcessor !== 'undefined');
+    console.log(
+      '[Season Color Checker] SEASONAL_PALETTES available:',
+      typeof SEASONAL_PALETTES !== 'undefined',
+    );
+    console.log(
+      '[Season Color Checker] ColorProcessor available:',
+      typeof ColorProcessor !== 'undefined',
+    );
 
     // Load color processor
     if (typeof ColorProcessor !== 'undefined') {
       colorProcessor = new ColorProcessor();
-      console.log('[Season Color Checker] ColorProcessor initialized with smart background filtering');
+      console.log(
+        '[Season Color Checker] ColorProcessor initialized with smart background filtering',
+      );
     } else {
       console.error('[Season Color Checker] ERROR: ColorProcessor not loaded! Check manifest.json');
       return;
@@ -62,19 +71,41 @@
         if (settings.selectedSeason && settings.filterEnabled) {
           // Check if the selected season exists in the palette
           if (SEASONAL_PALETTES[settings.selectedSeason]) {
-            console.log('[Season Color Checker] Starting filter with', settings.selectedSeason, 'palette');
+            console.log(
+              '[Season Color Checker] Starting filter with',
+              settings.selectedSeason,
+              'palette',
+            );
             startFiltering();
           } else {
-            console.error('[Season Color Checker] ⚠️ OLD SEASON DETECTED! Your selected season "' + settings.selectedSeason + '" is no longer valid.');
-            console.error('[Season Color Checker] 🔄 The extension now uses 12 sub-seasons instead of 4 basic seasons.');
-            console.error('[Season Color Checker] 📋 Please click the extension icon and select a new season from:');
-            console.error('[Season Color Checker]    🌺 Bright Spring, 🌸 Warm Spring, 🌼 Light Spring');
-            console.error('[Season Color Checker]    🌿 Soft Summer, 🌊 Cool Summer, ☁️ Light Summer');
-            console.error('[Season Color Checker]    🍁 Deep Autumn, 🍂 Warm Autumn, 🌾 Soft Autumn');
-            console.error('[Season Color Checker]    💎 Bright Winter, ❄️ Cool Winter, 🌑 Deep Winter');
+            console.error(
+              '[Season Color Checker] ⚠️ OLD SEASON DETECTED! Your selected season "' +
+                settings.selectedSeason +
+                '" is no longer valid.',
+            );
+            console.error(
+              '[Season Color Checker] 🔄 The extension now uses 12 sub-seasons instead of 4 basic seasons.',
+            );
+            console.error(
+              '[Season Color Checker] 📋 Please click the extension icon and select a new season from:',
+            );
+            console.error(
+              '[Season Color Checker]    🌺 Bright Spring, 🌸 Warm Spring, 🌼 Light Spring',
+            );
+            console.error(
+              '[Season Color Checker]    🌿 Soft Summer, 🌊 Cool Summer, ☁️ Light Summer',
+            );
+            console.error(
+              '[Season Color Checker]    🍁 Deep Autumn, 🍂 Warm Autumn, 🌾 Soft Autumn',
+            );
+            console.error(
+              '[Season Color Checker]    💎 Bright Winter, ❄️ Cool Winter, 🌑 Deep Winter',
+            );
           }
         } else if (!settings.selectedSeason) {
-          console.warn('[Season Color Checker] No season selected. Click extension icon to choose your palette.');
+          console.warn(
+            '[Season Color Checker] No season selected. Click extension icon to choose your palette.',
+          );
         } else {
           console.log('[Season Color Checker] Filter is disabled');
         }
@@ -164,7 +195,7 @@
     const images = findProductImages();
     console.log('[Season Color Checker] Found', images.length, 'product images to analyze');
 
-    images.forEach(img => {
+    images.forEach((img) => {
       if (!processedImages.has(img)) {
         processImage(img);
       }
@@ -182,23 +213,34 @@
     const productImages = [];
 
     // Apply smart filtering to all images on the page
-    allImages.forEach(img => {
+    allImages.forEach((img) => {
       // Skip common UI elements (logos, icons, social media buttons)
       const src = img.src.toLowerCase();
       const alt = (img.alt || '').toLowerCase();
       const className = (img.className || '').toLowerCase();
 
       // Skip logos and icons by src, alt, or class
-      if (src.includes('logo') || src.includes('icon') || src.includes('sprite') ||
-          alt.includes('logo') || alt.includes('icon') ||
-          className.includes('logo') || className.includes('icon')) {
+      if (
+        src.includes('logo') ||
+        src.includes('icon') ||
+        src.includes('sprite') ||
+        alt.includes('logo') ||
+        alt.includes('icon') ||
+        className.includes('logo') ||
+        className.includes('icon')
+      ) {
         return;
       }
 
       // Skip social media and UI elements
-      if (src.includes('facebook') || src.includes('twitter') || src.includes('instagram') ||
-          src.includes('pinterest') || src.includes('social') ||
-          className.includes('social')) {
+      if (
+        src.includes('facebook') ||
+        src.includes('twitter') ||
+        src.includes('instagram') ||
+        src.includes('pinterest') ||
+        src.includes('social') ||
+        className.includes('social')
+      ) {
         return;
       }
 
@@ -245,13 +287,20 @@
       const samples = [];
       const samplePoints = [
         // Corners
-        [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+        [0, 0],
+        [width - 1, 0],
+        [0, height - 1],
+        [width - 1, height - 1],
         // Midpoints of edges
-        [Math.floor(width / 2), 0], [Math.floor(width / 2), height - 1],
-        [0, Math.floor(height / 2)], [width - 1, Math.floor(height / 2)],
+        [Math.floor(width / 2), 0],
+        [Math.floor(width / 2), height - 1],
+        [0, Math.floor(height / 2)],
+        [width - 1, Math.floor(height / 2)],
         // Quarter points
-        [Math.floor(width / 4), 0], [Math.floor(3 * width / 4), 0],
-        [Math.floor(width / 4), height - 1], [Math.floor(3 * width / 4), height - 1]
+        [Math.floor(width / 4), 0],
+        [Math.floor((3 * width) / 4), 0],
+        [Math.floor(width / 4), height - 1],
+        [Math.floor((3 * width) / 4), height - 1],
       ];
 
       for (const [x, y] of samplePoints) {
@@ -306,9 +355,15 @@
 
     // Return average of cluster colors
     if (largestCluster && largestCluster.colors.length > 0) {
-      const avgR = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[0], 0) / largestCluster.colors.length);
-      const avgG = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[1], 0) / largestCluster.colors.length);
-      const avgB = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[2], 0) / largestCluster.colors.length);
+      const avgR = Math.round(
+        largestCluster.colors.reduce((sum, c) => sum + c[0], 0) / largestCluster.colors.length,
+      );
+      const avgG = Math.round(
+        largestCluster.colors.reduce((sum, c) => sum + c[1], 0) / largestCluster.colors.length,
+      );
+      const avgB = Math.round(
+        largestCluster.colors.reduce((sum, c) => sum + c[2], 0) / largestCluster.colors.length,
+      );
       return [avgR, avgG, avgB];
     }
 
@@ -326,10 +381,10 @@
       const height = img.naturalHeight || img.height;
 
       // Calculate crop percentages
-      const cropLeft = Math.floor(width * 0.20); // Remove 20% from left
-      const cropRight = Math.floor(width * 0.20); // Remove 20% from right
+      const cropLeft = Math.floor(width * 0.2); // Remove 20% from left
+      const cropRight = Math.floor(width * 0.2); // Remove 20% from right
       const cropTop = Math.floor(height * 0.15); // Remove 15% from top
-      const cropBottom = Math.floor(height * 0.10); // Remove 10% from bottom
+      const cropBottom = Math.floor(height * 0.1); // Remove 10% from bottom
 
       const croppedWidth = width - cropLeft - cropRight;
       const croppedHeight = height - cropTop - cropBottom;
@@ -347,8 +402,14 @@
       // Draw center region
       ctx.drawImage(
         img,
-        cropLeft, cropTop, croppedWidth, croppedHeight, // Source: center region
-        0, 0, croppedWidth, croppedHeight // Dest: fill canvas
+        cropLeft,
+        cropTop,
+        croppedWidth,
+        croppedHeight, // Source: center region
+        0,
+        0,
+        croppedWidth,
+        croppedHeight, // Dest: fill canvas
       );
 
       return canvas;
@@ -390,7 +451,7 @@
   function filterBackgroundColors(palette, backgroundColor) {
     if (!palette || palette.length === 0) return palette;
 
-    return palette.filter(color => {
+    return palette.filter((color) => {
       // Filter out colors similar to background (deltaE < 15)
       if (backgroundColor) {
         const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
@@ -407,6 +468,204 @@
 
       return true;
     });
+  }
+
+  /**
+   * Extract upper region of image where faces typically appear
+   * @param {HTMLImageElement|HTMLCanvasElement} img - Image to extract from
+   * @param {number} topPercent - Percentage of image to extract from top (0-1)
+   * @returns {HTMLCanvasElement|null} - Canvas with upper region
+   */
+  function extractUpperRegion(img, topPercent = 0.4) {
+    try {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+
+      const extractHeight = Math.floor(height * topPercent);
+
+      if (extractHeight <= 0 || width <= 0) {
+        return null;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = extractHeight;
+      const ctx = canvas.getContext('2d');
+
+      // Draw top portion of image
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        width,
+        extractHeight, // Source: top region
+        0,
+        0,
+        width,
+        extractHeight, // Dest: fill canvas
+      );
+
+      return canvas;
+    } catch (e) {
+      console.error('[Season Color Checker] Error extracting upper region:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Convert RGB to YCbCr color space (better for skin detection)
+   * @param {Array<number>} rgb - RGB array [r, g, b]
+   * @returns {Array<number>} - YCbCr array [y, cb, cr]
+   */
+  function rgbToYCbCr(rgb) {
+    const r = rgb[0];
+    const g = rgb[1];
+    const b = rgb[2];
+
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+    return [y, cb, cr];
+  }
+
+  /**
+   * Check if RGB color is valid skin tone (works across all ethnicities)
+   * Uses YCbCr color space thresholds
+   * @param {Array<number>} rgb - RGB array [r, g, b]
+   * @returns {boolean} - True if color is within skin tone range
+   */
+  function isValidSkinColor(rgb) {
+    const [y, cb, cr] = rgbToYCbCr(rgb);
+
+    // YCbCr thresholds for skin detection (empirically validated)
+    // Works for all skin tones from very light to very dark
+    return cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
+  }
+
+  /**
+   * Check if RGB color is valid hair color
+   * Hair is typically dark and somewhat saturated
+   * @param {Array<number>} rgb - RGB array [r, g, b]
+   * @returns {boolean} - True if color matches hair characteristics
+   */
+  function isValidHairColor(rgb) {
+    // Convert to HSL to check lightness and saturation
+    const r = rgb[0] / 255;
+    const g = rgb[1] / 255;
+    const b = rgb[2] / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+
+    const lightness = (max + min) / 2;
+
+    // Calculate saturation
+    let saturation = 0;
+    if (delta !== 0) {
+      saturation =
+        lightness === 0 || lightness === 1 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+    }
+
+    // Hair is typically darker (lightness < 0.6) and has some saturation (> 0.2)
+    // Allow lighter colors for blonde/gray hair, but require some color presence
+    return lightness < 0.7 && saturation > 0.15;
+  }
+
+  /**
+   * Detect skin tone from canvas using YCbCr color space
+   * @param {HTMLCanvasElement} canvas - Canvas to analyze
+   * @returns {Array<number>|null} - Dominant skin color as RGB, or null if no skin detected
+   */
+  function detectSkinTone(canvas) {
+    try {
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+
+      const skinPixels = [];
+
+      // Sample every 4th pixel for performance (adjustable)
+      const step = 4;
+      for (let i = 0; i < pixels.length; i += 4 * step) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const rgb = [r, g, b];
+
+        if (isValidSkinColor(rgb)) {
+          skinPixels.push(rgb);
+        }
+      }
+
+      if (skinPixels.length < 10) {
+        return null; // Not enough skin pixels found
+      }
+
+      // Calculate average of all skin pixels
+      const avgR = Math.round(skinPixels.reduce((sum, p) => sum + p[0], 0) / skinPixels.length);
+      const avgG = Math.round(skinPixels.reduce((sum, p) => sum + p[1], 0) / skinPixels.length);
+      const avgB = Math.round(skinPixels.reduce((sum, p) => sum + p[2], 0) / skinPixels.length);
+
+      console.log('[Season Color Checker] Detected skin tone from', skinPixels.length, 'pixels');
+      return [avgR, avgG, avgB];
+    } catch (e) {
+      console.error('[Season Color Checker] Error detecting skin tone:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Detect hair color from canvas (focuses on top portion)
+   * @param {HTMLCanvasElement} canvas - Canvas to analyze
+   * @returns {Array<number>|null} - Dominant hair color as RGB, or null if no hair detected
+   */
+  function detectHairColor(canvas) {
+    try {
+      // Extract top 15% of the canvas (where hair typically is)
+      const hairCanvas = document.createElement('canvas');
+      const hairHeight = Math.floor(canvas.height * 0.15);
+      hairCanvas.width = canvas.width;
+      hairCanvas.height = hairHeight;
+      const hairCtx = hairCanvas.getContext('2d');
+
+      hairCtx.drawImage(canvas, 0, 0, canvas.width, hairHeight, 0, 0, canvas.width, hairHeight);
+
+      const ctx = hairCtx;
+      const imageData = ctx.getImageData(0, 0, hairCanvas.width, hairCanvas.height);
+      const pixels = imageData.data;
+
+      const hairPixels = [];
+
+      // Sample every 4th pixel for performance
+      const step = 4;
+      for (let i = 0; i < pixels.length; i += 4 * step) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const rgb = [r, g, b];
+
+        if (isValidHairColor(rgb)) {
+          hairPixels.push(rgb);
+        }
+      }
+
+      if (hairPixels.length < 10) {
+        return null; // Not enough hair pixels found
+      }
+
+      // Calculate average of all hair pixels
+      const avgR = Math.round(hairPixels.reduce((sum, p) => sum + p[0], 0) / hairPixels.length);
+      const avgG = Math.round(hairPixels.reduce((sum, p) => sum + p[1], 0) / hairPixels.length);
+      const avgB = Math.round(hairPixels.reduce((sum, p) => sum + p[2], 0) / hairPixels.length);
+
+      console.log('[Season Color Checker] Detected hair color from', hairPixels.length, 'pixels');
+      return [avgR, avgG, avgB];
+    } catch (e) {
+      console.error('[Season Color Checker] Error detecting hair color:', e);
+      return null;
+    }
   }
 
   /**
@@ -450,7 +709,7 @@
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'getPreferredMethod',
-        domain: domain
+        domain: domain,
       });
       preferredMethod = response?.preferredMethod;
     } catch (e) {
@@ -460,7 +719,10 @@
     // Tier 1: Try crossorigin="anonymous" (unless we know it won't work)
     if (preferredMethod !== 'fetch') {
       try {
-        console.log('[Season Color Checker] Tier 1: Trying crossorigin="anonymous" for:', originalSrc.substring(0, 80));
+        console.log(
+          '[Season Color Checker] Tier 1: Trying crossorigin="anonymous" for:',
+          originalSrc.substring(0, 80),
+        );
 
         // Clone the image to avoid affecting the original
         const testImg = new Image();
@@ -491,11 +753,14 @@
     // Tier 2: Fetch via service worker (unless we know direct works)
     if (preferredMethod !== 'direct') {
       try {
-        console.log('[Season Color Checker] Tier 2: Fetching via service worker:', originalSrc.substring(0, 80));
+        console.log(
+          '[Season Color Checker] Tier 2: Fetching via service worker:',
+          originalSrc.substring(0, 80),
+        );
 
         const response = await chrome.runtime.sendMessage({
           action: 'fetchImage',
-          url: originalSrc
+          url: originalSrc,
         });
 
         if (response.success && response.dataUrl) {
@@ -524,7 +789,10 @@
     }
 
     // Tier 3: All automatic methods failed - show badge
-    console.log('[Season Color Checker] ✗ All automatic methods failed for:', originalSrc.substring(0, 80));
+    console.log(
+      '[Season Color Checker] ✗ All automatic methods failed for:',
+      originalSrc.substring(0, 80),
+    );
     trackCorsEvent(domain, 'failure', 'all-failed');
 
     // Show dismissable badge (will be implemented next)
@@ -565,7 +833,10 @@
       // Pre-check: Can we access this image's pixel data?
       let processableImage = img;
       if (!canAccessImageData(img)) {
-        console.log('[Season Color Checker] CORS detected, trying fallback methods:', img.src.substring(0, 80));
+        console.log(
+          '[Season Color Checker] CORS detected, trying fallback methods:',
+          img.src.substring(0, 80),
+        );
 
         // Get domain for tracking
         const domain = getDomainFromUrl(img.src);
@@ -596,7 +867,10 @@
         if (borderColors.length > 0) {
           backgroundColor = findDominantBackgroundColor(borderColors);
           if (backgroundColor) {
-            console.log('[Season Color Checker] Detected background color:', colorProcessor.rgbToHex(backgroundColor));
+            console.log(
+              '[Season Color Checker] Detected background color:',
+              colorProcessor.rgbToHex(backgroundColor),
+            );
           }
         }
 
@@ -619,7 +893,11 @@
         // Take top 5 after filtering
         dominantColors = dominantColors.slice(0, 5);
 
-        console.log('[Season Color Checker] Filtered palette:', dominantColors.length, 'colors after background removal');
+        console.log(
+          '[Season Color Checker] Filtered palette:',
+          dominantColors.length,
+          'colors after background removal',
+        );
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -631,30 +909,64 @@
         return;
       }
 
+      // NEW: Detect skin tone and hair color (if enabled)
+      let skinTone = null;
+      let hairColor = null;
+
+      if (settings.faceDetectionEnabled) {
+        try {
+          // Extract upper 40% of image where faces typically appear
+          const upperRegion = extractUpperRegion(processableImage, 0.4);
+          if (upperRegion) {
+            // Detect skin tone from upper region
+            skinTone = detectSkinTone(upperRegion);
+            if (skinTone) {
+              console.log(
+                '[Season Color Checker] Detected skin tone:',
+                colorProcessor.rgbToHex(skinTone),
+              );
+            }
+
+            // Detect hair color from upper region
+            hairColor = detectHairColor(upperRegion);
+            if (hairColor) {
+              console.log(
+                '[Season Color Checker] Detected hair color:',
+                colorProcessor.rgbToHex(hairColor),
+              );
+            }
+          }
+        } catch (e) {
+          console.log('[Season Color Checker] Face detection failed:', e.message);
+          // Continue without face data - not critical
+        }
+      }
+
       // Detect which season(s) the product belongs to
       const productSeasonResult = colorProcessor.detectProductSeason(
         dominantColors,
-        SEASONAL_PALETTES
+        SEASONAL_PALETTES,
       );
 
       // Get current season's palette for user comparison
       const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
       if (!seasonPalette) {
-        console.warn('[Season Color Checker] Invalid season selected:', settings.selectedSeason, '- Please reselect your season from the popup');
+        console.warn(
+          '[Season Color Checker] Invalid season selected:',
+          settings.selectedSeason,
+          '- Please reselect your season from the popup',
+        );
         return;
       }
 
       // Analyze compatibility with user's season
       const compatibility = colorProcessor.analyzeSeasonCompatibility(
         productSeasonResult,
-        settings.selectedSeason
+        settings.selectedSeason,
       );
 
       // Legacy match result for backward compatibility
-      const matchResult = colorProcessor.checkColorMatch(
-        dominantColors,
-        seasonPalette.colors
-      );
+      const matchResult = colorProcessor.checkColorMatch(dominantColors, seasonPalette.colors);
 
       // Store enhanced match data on element BEFORE applying filter (so swatch function can access it)
       img.dataset.seasonMatch = compatibility.compatible ? 'true' : 'false';
@@ -663,13 +975,21 @@
       img.dataset.productSeasonName = productSeasonResult.primarySeason?.seasonName || 'Unknown';
       img.dataset.compatibilityType = compatibility.matchType || 'none';
       img.dataset.dominantColors = JSON.stringify(
-        dominantColors.slice(0, 3).map(rgb => colorProcessor.rgbToHex(rgb))
+        dominantColors.slice(0, 3).map((rgb) => colorProcessor.rgbToHex(rgb)),
       );
       img.dataset.seasonData = JSON.stringify({
         primary: productSeasonResult.primarySeason,
         secondary: productSeasonResult.secondarySeasons,
-        compatibility: compatibility
+        compatibility: compatibility,
       });
+
+      // Store skin tone and hair color if detected
+      if (skinTone) {
+        img.dataset.skinTone = colorProcessor.rgbToHex(skinTone);
+      }
+      if (hairColor) {
+        img.dataset.hairColor = colorProcessor.rgbToHex(hairColor);
+      }
 
       // Apply visual filter based on compatibility
       applyFilter(img, matchResult, productSeasonResult, compatibility);
@@ -678,7 +998,6 @@
       if (compatibility.compatible) {
         stats.matchingImages++;
       }
-
     } catch (error) {
       console.error('Error processing image:', error);
     }
@@ -768,13 +1087,33 @@
       paletteContainer.className = 'color-palette-swatch-container';
 
       // Create a swatch for each dominant color
-      dominantColors.forEach(hexColor => {
+      dominantColors.forEach((hexColor) => {
         const swatch = document.createElement('div');
         swatch.className = 'color-swatch';
         swatch.style.backgroundColor = hexColor;
         swatch.title = hexColor; // Show hex value on hover
         paletteContainer.appendChild(swatch);
       });
+
+      // Add skin tone swatch if detected
+      if (img.dataset.skinTone) {
+        const skinSwatch = document.createElement('div');
+        skinSwatch.className = 'color-swatch skin-tone-swatch';
+        skinSwatch.style.backgroundColor = img.dataset.skinTone;
+        skinSwatch.title = `Skin Tone: ${img.dataset.skinTone}`;
+        skinSwatch.textContent = '👤'; // Person icon
+        paletteContainer.appendChild(skinSwatch);
+      }
+
+      // Add hair color swatch if detected
+      if (img.dataset.hairColor) {
+        const hairSwatch = document.createElement('div');
+        hairSwatch.className = 'color-swatch hair-color-swatch';
+        hairSwatch.style.backgroundColor = img.dataset.hairColor;
+        hairSwatch.title = `Hair Color: ${img.dataset.hairColor}`;
+        hairSwatch.textContent = '✂️'; // Scissors icon (represents hair)
+        paletteContainer.appendChild(hairSwatch);
+      }
 
       // Add to container
       container.appendChild(paletteContainer);
@@ -800,10 +1139,10 @@
     const primarySeason = productSeasonResult?.primarySeason;
     if (primarySeason && primarySeason.emoji) {
       if (compatibility.compatible) {
-        badge.innerHTML = `${primarySeason.emoji} ✓`;
+        badge.innerHTML = `✓`;
         badge.classList.add('match');
       } else {
-        badge.innerHTML = `${primarySeason.emoji} ✗`;
+        badge.innerHTML = `✗`;
         badge.classList.add('no-match');
       }
     } else {
@@ -843,7 +1182,7 @@
         tooltip += `Also works for your season (${matchResult.confidence.toFixed(0)}% match)`;
       }
       if (secondarySeasons.length > 0) {
-        tooltip += `\nAlso works for: ${secondarySeasons.map(s => s.seasonName).join(', ')}`;
+        tooltip += `\nAlso works for: ${secondarySeasons.map((s) => s.seasonName).join(', ')}`;
       }
     } else {
       tooltip = `✗ ${primarySeason.emoji} ${primarySeason.seasonName} item\n`;
@@ -870,7 +1209,7 @@
 
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
   }
 
@@ -890,16 +1229,16 @@
    * Remove all filters from page
    */
   function removeAllFilters() {
-    document.querySelectorAll('.season-match, .season-no-match').forEach(img => {
+    document.querySelectorAll('.season-match, .season-no-match').forEach((img) => {
       img.classList.remove('season-match', 'season-no-match');
       img.title = '';
     });
 
-    document.querySelectorAll('.season-dimmed').forEach(container => {
+    document.querySelectorAll('.season-dimmed').forEach((container) => {
       container.classList.remove('season-dimmed');
     });
 
-    document.querySelectorAll('.season-badge').forEach(badge => {
+    document.querySelectorAll('.season-badge').forEach((badge) => {
       badge.remove();
     });
 
@@ -956,7 +1295,7 @@
     console.log('[Season Color Checker] Found', swatches.length, 'color swatches to analyze');
 
     // Process each swatch
-    swatches.forEach(swatch => {
+    swatches.forEach((swatch) => {
       if (!processedSwatches.has(swatch)) {
         processSwatch(swatch);
       }
@@ -985,14 +1324,14 @@
       '[class*="variant"]',
       '[data-color]',
       '[aria-label*="color"]',
-      '[aria-label*="colour"]'
+      '[aria-label*="colour"]',
     ];
 
     // Find elements matching common swatch patterns
-    swatchSelectors.forEach(selector => {
+    swatchSelectors.forEach((selector) => {
       try {
         const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
+        elements.forEach((el) => {
           if (isValidSwatch(el)) {
             swatches.push(el);
           }
@@ -1004,7 +1343,7 @@
 
     // Also look for small divs with solid background colors (common pattern)
     const allDivs = document.querySelectorAll('div, span, button');
-    allDivs.forEach(el => {
+    allDivs.forEach((el) => {
       const style = window.getComputedStyle(el);
       const width = el.offsetWidth;
       const height = el.offsetHeight;
@@ -1100,7 +1439,6 @@
 
       // Apply visual styling
       applySwatchStyle(swatch, result);
-
     } catch (error) {
       console.error('[Season Color Checker] Error processing swatch:', error);
       stats.totalSwatches--;
@@ -1159,54 +1497,67 @@
   /**
    * Handle clicks on product images to add to wishlist
    */
-  document.addEventListener('click', (e) => {
-    const img = e.target.closest('img.season-match');
-    if (!img) return;
+  document.addEventListener(
+    'click',
+    (e) => {
+      const img = e.target.closest('img.season-match');
+      if (!img) return;
 
-    // Check if clicking on the image itself (not just near it)
-    if (e.target !== img) return;
+      // Check if clicking on the image itself (not just near it)
+      if (e.target !== img) return;
 
-    // Show "Add to wishlist" option
-    if (confirm('Add this item to your wishlist?')) {
-      const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
-      const matchScore = parseInt(img.dataset.matchScore || '0');
-      const imageUrl = img.src;
+      // Show "Add to wishlist" option
+      if (confirm('Add this item to your wishlist?')) {
+        const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
+        const matchScore = parseInt(img.dataset.matchScore || '0');
+        const imageUrl = img.src;
 
-      // Fetch image as data URL to avoid CORS issues in popup
-      chrome.runtime.sendMessage({
-        action: 'fetchImage',
-        url: imageUrl
-      }, (fetchResponse) => {
-        if (fetchResponse && fetchResponse.success) {
-          // Now add to wishlist with data URL
-          chrome.runtime.sendMessage({
-            action: 'addToWishlist',
-            imageUrl: fetchResponse.dataUrl,
-            pageUrl: window.location.href,
-            dominantColors: dominantColors,
-            matchScore: matchScore
-          }, (response) => {
-            if (response && response.success) {
-              alert('Added to wishlist!');
+        // Fetch image as data URL to avoid CORS issues in popup
+        chrome.runtime.sendMessage(
+          {
+            action: 'fetchImage',
+            url: imageUrl,
+          },
+          (fetchResponse) => {
+            if (fetchResponse && fetchResponse.success) {
+              // Now add to wishlist with data URL
+              chrome.runtime.sendMessage(
+                {
+                  action: 'addToWishlist',
+                  imageUrl: fetchResponse.dataUrl,
+                  pageUrl: window.location.href,
+                  dominantColors: dominantColors,
+                  matchScore: matchScore,
+                },
+                (response) => {
+                  if (response && response.success) {
+                    alert('Added to wishlist!');
+                  }
+                },
+              );
+            } else {
+              // Fallback to original URL if fetch fails
+              chrome.runtime.sendMessage(
+                {
+                  action: 'addToWishlist',
+                  imageUrl: imageUrl,
+                  pageUrl: window.location.href,
+                  dominantColors: dominantColors,
+                  matchScore: matchScore,
+                },
+                (response) => {
+                  if (response && response.success) {
+                    alert('Added to wishlist!');
+                  }
+                },
+              );
             }
-          });
-        } else {
-          // Fallback to original URL if fetch fails
-          chrome.runtime.sendMessage({
-            action: 'addToWishlist',
-            imageUrl: imageUrl,
-            pageUrl: window.location.href,
-            dominantColors: dominantColors,
-            matchScore: matchScore
-          }, (response) => {
-            if (response && response.success) {
-              alert('Added to wishlist!');
-            }
-          });
-        }
-      });
-    }
-  }, true);
+          },
+        );
+      }
+    },
+    true,
+  );
 
   /**
    * Helper function to extract domain from URL
@@ -1232,7 +1583,9 @@
 
     // Check if user has dismissed badges for this domain
     const domain = getDomainFromUrl(img.src);
-    const dismissedDomains = JSON.parse(localStorage.getItem('seasonColorChecker_dismissedDomains') || '[]');
+    const dismissedDomains = JSON.parse(
+      localStorage.getItem('seasonColorChecker_dismissedDomains') || '[]',
+    );
     if (dismissedDomains.includes(domain)) {
       return;
     }
@@ -1299,7 +1652,7 @@
           chrome.runtime.sendMessage({
             action: 'checkColorFromPicker',
             color: result.sRGBHex,
-            season: settings.selectedSeason
+            season: settings.selectedSeason,
           });
 
           badge.remove();
@@ -1314,10 +1667,13 @@
       e.preventDefault();
       if (confirm(`Don't show CORS warnings on ${domain}?`)) {
         dismissedDomains.push(domain);
-        localStorage.setItem('seasonColorChecker_dismissedDomains', JSON.stringify(dismissedDomains));
+        localStorage.setItem(
+          'seasonColorChecker_dismissedDomains',
+          JSON.stringify(dismissedDomains),
+        );
 
         // Remove all badges on this domain
-        document.querySelectorAll('.season-color-checker-cors-badge').forEach(b => b.remove());
+        document.querySelectorAll('.season-color-checker-cors-badge').forEach((b) => b.remove());
       }
     };
 
@@ -1342,14 +1698,16 @@
     if (!domain) return;
 
     // Send to service worker for tracking (fire and forget - don't wait for response)
-    chrome.runtime.sendMessage({
-      action: 'trackCorsEvent',
-      domain: domain,
-      eventType: eventType,
-      method: method
-    }).catch(() => {
-      // Ignore errors - tracking is optional
-    });
+    chrome.runtime
+      .sendMessage({
+        action: 'trackCorsEvent',
+        domain: domain,
+        eventType: eventType,
+        method: method,
+      })
+      .catch(() => {
+        // Ignore errors - tracking is optional
+      });
   }
 
   // Initialize when DOM is ready
@@ -1358,5 +1716,4 @@
   } else {
     initialize();
   }
-
 })();
