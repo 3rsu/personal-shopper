@@ -1,0 +1,16 @@
+# Node modules
+node_modules/
+
+# Large model chunk files (328MB total)
+# These are downloaded from @imgly/background-removal CDN
+# To regenerate: curl -L -o package.tgz https://staticimgly.com/@imgly/background-removal-data/1.7.0/package.tgz && tar -xzf package.tgz && cp -r package/dist/* dist/
+dist/*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]
+
+# Temporary files
+.DS_Store
+*.log
+*.tmp
+
+# Package archives
+*.tgz
+*.tar.gz

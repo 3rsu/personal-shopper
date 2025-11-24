@@ -7,7 +7,35 @@ class BackgroundRemover {
   constructor() {
     this.debug = true;
     this.initialized = false;
+
+    // Create custom fetch function for Chrome extension resources
+    const fetchResource = async (url) => {
+      // Handle absolute URLs (http, https, chrome-extension)
+      if (url.startsWith('http') || url.startsWith('chrome-extension://')) {
+        if (this.debug) {
+          console.log(`[BG Remover] Fetching absolute URL: ${url}`);
+        }
+        return fetch(url);
+      }
+
+      // Handle relative URLs - resolve against dist directory
+      const cleanUrl = url.replace(/^\.?\//, ''); // Remove leading ./ or /
+      const resolvedUrl = chrome.runtime.getURL(`dist/${cleanUrl}`);
+
+      if (this.debug) {
+        console.log(`[BG Remover] Fetching resource: ${cleanUrl} -> ${resolvedUrl}`);
+      }
+
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        console.error(`[BG Remover] Failed to fetch ${resolvedUrl}: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch ${resolvedUrl}: ${response.status} ${response.statusText}`);
+      }
+      return response;
+    };
+
     this.config = {
+      publicPath: chrome.runtime.getURL('dist/'), // Load models from extension instead of CDN
       debug: this.debug,
       device: 'cpu', // Use CPU to avoid GPU compatibility issues
       model: 'isnet_quint8', // Small model (~40MB) for faster loading
@@ -15,7 +43,8 @@ class BackgroundRemover {
         format: 'image/png',
         quality: 0.8,
         type: 'foreground'
-      }
+      },
+      fetchResource: fetchResource
     };
   }
 
@@ -55,6 +84,24 @@ class BackgroundRemover {
       const endTime = performance.now();
       if (this.debug) {
         console.log(`[BG Remover] Processing completed in ${(endTime - startTime).toFixed(2)}ms`);
+
+        // Debug: Check alpha channel in result
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = imageData.data;
+        let transparentCount = 0;
+        let semiTransparentCount = 0;
+        let opaqueCount = 0;
+
+        for (let i = 3; i < pixels.length; i += 4) {
+          const alpha = pixels[i];
+          if (alpha === 0) transparentCount++;
+          else if (alpha < 255) semiTransparentCount++;
+          else opaqueCount++;
+        }
+
+        const totalPixels = pixels.length / 4;
+        console.log(`[BG Remover] Alpha analysis: Transparent: ${transparentCount} (${(transparentCount/totalPixels*100).toFixed(1)}%), Semi: ${semiTransparentCount} (${(semiTransparentCount/totalPixels*100).toFixed(1)}%), Opaque: ${opaqueCount} (${(opaqueCount/totalPixels*100).toFixed(1)}%)`);
       }
 
       return canvas;

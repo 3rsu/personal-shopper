@@ -947,15 +947,15 @@
       }
 
       // Find closest matching color
-      const result = colorProcessor.findClosestColor([rgb], seasonPalette.colors);
+      const result = colorProcessor.findClosestMatch(hex, seasonPalette.colors);
 
       // Store swatch data
       swatch.dataset.swatchColor = hex;
-      swatch.dataset.swatchMatch = result.matches ? 'true' : 'false';
-      swatch.dataset.swatchDeltaE = result.distance.toFixed(1);
+      swatch.dataset.swatchMatch = result.isMatch ? 'true' : 'false';
+      swatch.dataset.swatchDeltaE = result.deltaE.toFixed(1);
 
       // Update stats
-      if (result.matches) {
+      if (result.isMatch) {
         stats.matchingSwatches++;
       }
 
@@ -991,7 +991,7 @@
     swatch.classList.remove('season-swatch-match', 'season-swatch-no-match');
 
     // Add match/no-match class
-    if (result.matches) {
+    if (result.isMatch) {
       swatch.classList.add('season-swatch-match');
     } else {
       swatch.classList.add('season-swatch-no-match');
@@ -1001,7 +1001,7 @@
     const hex = swatch.dataset.swatchColor;
     const deltaE = swatch.dataset.swatchDeltaE;
 
-    if (result.matches) {
+    if (result.isMatch) {
       swatch.title = `✓ ${hex} matches your ${settings.selectedSeason} palette (ΔE ${deltaE})`;
     } else {
       swatch.title = `✗ ${hex} doesn't match (ΔE ${deltaE})`;

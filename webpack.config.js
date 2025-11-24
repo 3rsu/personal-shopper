@@ -6,6 +6,8 @@ module.exports = {
   output: {
     filename: 'background-removal-bundle.js',
     path: path.resolve(__dirname, 'dist'),
+    publicPath: '', // Will be overridden by __webpack_public_path__ at runtime
+    chunkFilename: '[id].background-removal-bundle.js',
   },
   experiments: {
     asyncWebAssembly: true,
@@ -14,5 +16,8 @@ module.exports = {
     hints: false,
     maxAssetSize: 512000,
     maxEntrypointSize: 512000,
+  },
+  optimization: {
+    minimize: true,
   },
 };
