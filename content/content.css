@@ -490,6 +490,33 @@ body.season-highlights-hidden .season-badge {
 
 /**
  * ===================================
+ * COLOR PALETTE DEBUG DISPLAY
+ * ===================================
+ */
+
+/* Container for dominant color palette swatches */
+.color-palette-swatch-container {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  gap: 3px;
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* Individual color swatch boxes */
+.color-palette-swatch-container .color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+/**
+ * ===================================
  * COLOR SWATCH STYLES
  * ===================================
  */

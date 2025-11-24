@@ -468,15 +468,7 @@
         seasonPalette.colors
       );
 
-      // Apply visual filter based on compatibility
-      applyFilter(img, matchResult, productSeasonResult, compatibility);
-
-      // Update stats
-      if (compatibility.compatible) {
-        stats.matchingImages++;
-      }
-
-      // Store enhanced match data on element for later use
+      // Store enhanced match data on element BEFORE applying filter (so swatch function can access it)
       img.dataset.seasonMatch = compatibility.compatible ? 'true' : 'false';
       img.dataset.matchScore = matchResult.confidence.toFixed(0);
       img.dataset.productSeason = productSeasonResult.primarySeason?.seasonKey || 'unknown';
@@ -490,6 +482,14 @@
         secondary: productSeasonResult.secondarySeasons,
         compatibility: compatibility
       });
+
+      // Apply visual filter based on compatibility
+      applyFilter(img, matchResult, productSeasonResult, compatibility);
+
+      // Update stats
+      if (compatibility.compatible) {
+        stats.matchingImages++;
+      }
 
     } catch (error) {
       console.error('Error processing image:', error);
@@ -546,11 +546,53 @@
       container.classList.add('season-dimmed');
     }
 
+    // Add color palette debug display
+    addColorPaletteSwatch(container, img);
+
     // Add enhanced match badge with season info
     addMatchBadge(container, matchResult, productSeasonResult, compatibility);
 
     // Add enhanced hover tooltip with season details
     addTooltip(img, matchResult, productSeasonResult, compatibility);
+  }
+
+  /**
+   * Add color palette debug display showing dominant colors from ColorThief
+   */
+  function addColorPaletteSwatch(container, img) {
+    // Remove existing palette display
+    const existingPalette = container.querySelector('.color-palette-swatch-container');
+    if (existingPalette) {
+      existingPalette.remove();
+    }
+
+    // Get dominant colors from the image dataset
+    const dominantColorsJson = img.dataset.dominantColors;
+    if (!dominantColorsJson) {
+      return; // No color data available
+    }
+
+    try {
+      const dominantColors = JSON.parse(dominantColorsJson);
+
+      // Create container for color swatches
+      const paletteContainer = document.createElement('div');
+      paletteContainer.className = 'color-palette-swatch-container';
+
+      // Create a swatch for each dominant color
+      dominantColors.forEach(hexColor => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = hexColor;
+        swatch.title = hexColor; // Show hex value on hover
+        paletteContainer.appendChild(swatch);
+      });
+
+      // Add to container
+      container.appendChild(paletteContainer);
+    } catch (error) {
+      console.error('Error creating color palette swatch:', error);
+    }
   }
 
   /**
