@@ -12,9 +12,10 @@ class BackgroundRemover {
   /**
    * Main entry point: removes background from image and returns cleaned canvas
    * @param {HTMLImageElement|HTMLCanvasElement} image - The source image
+   * @param {boolean} excludeTopPortion - If true, excludes top 1/3.5 of image (removes face area)
    * @returns {HTMLCanvasElement|null} - Canvas with background removed, or null on failure
    */
-  removeBackground(image) {
+  removeBackground(image, excludeTopPortion = true) {
     try {
       const startTime = performance.now();
 
@@ -33,7 +34,12 @@ class BackgroundRemover {
 
       if (!mask) {
         if (this.debug) console.log('[BG Remover] Segmentation failed, using fallback');
-        return this.fallbackCenterCrop(canvas);
+        return this.fallbackCenterCrop(canvas, excludeTopPortion);
+      }
+
+      // Apply spatial filtering to exclude top portion (face/head area)
+      if (excludeTopPortion) {
+        this.excludeTopRegion(mask, canvas.width, canvas.height);
       }
 
       // Apply mask to create result
@@ -48,6 +54,25 @@ class BackgroundRemover {
     } catch (e) {
       console.error('[BG Remover] Error:', e);
       return null;
+    }
+  }
+
+  /**
+   * Exclude top 1/3.5 of the image to remove face/head area
+   * This helps focus color extraction on clothing rather than skin/hair
+   * @param {Uint8Array} mask - Binary mask (1 = keep, 0 = remove)
+   * @param {number} width - Image width
+   * @param {number} height - Image height
+   */
+  excludeTopRegion(mask, width, height) {
+    const cutoffY = Math.floor(height / 3.5);
+
+    // Set mask to 0 for all pixels in top 1/3.5
+    for (let y = 0; y < cutoffY; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        mask[idx] = 0;
+      }
     }
   }
 
@@ -605,12 +630,35 @@ class BackgroundRemover {
   /**
    * Fallback: center crop
    */
-  fallbackCenterCrop(canvas) {
+  fallbackCenterCrop(canvas, excludeTopPortion = true) {
     const cropPercent = 0.75;
     const cropWidth = Math.floor(canvas.width * cropPercent);
     const cropHeight = Math.floor(canvas.height * cropPercent);
     const startX = Math.floor((canvas.width - cropWidth) / 2);
-    const startY = Math.floor((canvas.height - cropHeight) / 2);
+
+    // If excluding top portion, start cropping below the face area
+    let startY = Math.floor((canvas.height - cropHeight) / 2);
+    if (excludeTopPortion) {
+      const topExclusionHeight = Math.floor(canvas.height / 3.5);
+      // Start cropping below the excluded top region
+      startY = Math.max(topExclusionHeight, startY);
+
+      // Adjust crop height if necessary to fit within bounds
+      const adjustedCropHeight = Math.min(cropHeight, canvas.height - startY);
+
+      const result = document.createElement('canvas');
+      result.width = cropWidth;
+      result.height = adjustedCropHeight;
+      const ctx = result.getContext('2d');
+
+      ctx.drawImage(
+        canvas,
+        startX, startY, cropWidth, adjustedCropHeight,
+        0, 0, cropWidth, adjustedCropHeight
+      );
+
+      return result;
+    }
 
     const result = document.createElement('canvas');
     result.width = cropWidth;

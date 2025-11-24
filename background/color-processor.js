@@ -127,7 +127,7 @@ class ColorProcessor {
   }
 
   /**
-   * Check if dominant colors match palette (1 out of 2 rule)
+   * Check if dominant colors match palette (majority rule)
    * @param {Array} dominantColors - Array of RGB arrays from Color Thief
    * @param {Array} paletteHexColors - Array of palette hex colors
    * @returns {Object} Match result with details
@@ -140,8 +140,8 @@ class ColorProcessor {
     const results = [];
     let matchCount = 0;
 
-    // Check top 3 dominant colors for detailed analysis
-    const colorsToCheck = dominantColors.slice(0, 3);
+    // Check all extracted dominant colors (up to 5)
+    const colorsToCheck = dominantColors.slice(0, 5);
 
     for (const rgb of colorsToCheck) {
       const hex = this.rgbToHex(rgb);
@@ -159,17 +159,18 @@ class ColorProcessor {
       }
     }
 
-    // Item matches if at least 1 of top 2 colors match
-    // This is more lenient for single-color garments while still being accurate
-    const topTwoMatches = results.slice(0, 2).filter(r => r.isMatch).length;
-    const matches = topTwoMatches >= 1;
+    // Item matches if MAJORITY of colors match (more than 50%)
+    // This is robust: works for single-color items and multi-color patterns
+    const majorityThreshold = Math.ceil(colorsToCheck.length / 2);
+    const matches = matchCount >= majorityThreshold;
 
     return {
       matches,
       matchCount,
       totalColors: colorsToCheck.length,
       details: results,
-      confidence: (matchCount / colorsToCheck.length) * 100
+      confidence: (matchCount / colorsToCheck.length) * 100,
+      majorityThreshold // Include for debugging/display
     };
   }
 

@@ -24,13 +24,14 @@
   min-width: 0 !important;
 }
 
-.season-filter-container.season-dimmed {
+/* Dimming disabled - non-matches appear at full opacity */
+/*.season-filter-container.season-dimmed {
   opacity: 0.35;
 }
 
 .season-filter-container.season-dimmed:hover {
   opacity: 1;
-}
+}*/
 
 /* Product Image States */
 img.season-match {
@@ -39,15 +40,15 @@ img.season-match {
   border-radius: 4px !important;
 }
 
-img.season-no-match {
-  /* Dimmed by parent container */
+/* Grayscale filter disabled - non-matches appear in full color */
+/*img.season-no-match {
   filter: grayscale(30%);
   transition: filter 0.3s ease;
 }
 
 img.season-no-match:hover {
   filter: grayscale(0%);
-}
+}*/
 
 /* Match Badge */
 .season-badge {
