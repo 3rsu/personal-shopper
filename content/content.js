@@ -187,6 +187,12 @@
 
     // Set up inactivity detection for color swatches
     setupInactivityDetection();
+
+    // Watch for swatch selection changes (dynamic sites with AJAX)
+    if (typeof watchSwatchChanges === 'function') {
+      watchSwatchChanges();
+      console.log('[Season Color Checker] Swatch change watcher initialized');
+    }
   }
 
   /**
@@ -935,6 +941,39 @@
         } else {
           // Text enhancement disabled, just take top 5
           dominantColors = dominantColors.slice(0, 5);
+        }
+
+        // NEW Step 6: Detect and prioritize selected swatch color (universal e-commerce)
+        if (typeof findSelectedSwatchForImage === 'function') {
+          try {
+            const selectedSwatch = findSelectedSwatchForImage(img);
+
+            if (selectedSwatch) {
+              const swatchColor = extractSwatchColor(selectedSwatch);
+
+              if (swatchColor) {
+                console.log(
+                  '[Season Color Checker] Found selected swatch:',
+                  swatchColor.hex,
+                  `(${swatchColor.source}, confidence: ${swatchColor.confidence})`,
+                );
+
+                // Apply swatch priority weighting to boost matching colors
+                dominantColors = applySwatchPriorityWeighting(
+                  dominantColors,
+                  swatchColor,
+                  colorProcessor,
+                );
+
+                // Store the selected swatch color for display (will be inserted at position #1)
+                img.dataset.selectedSwatchColor = swatchColor.hex;
+                img.dataset.selectedSwatchSource = swatchColor.source;
+              }
+            }
+          } catch (swatchError) {
+            console.log('[Season Color Checker] Swatch priority failed:', swatchError.message);
+            // Continue without swatch enhancement - not critical
+          }
         }
 
       } catch (e) {
