@@ -18,6 +18,8 @@
   let wishlist = [];
   let colorHistory = [];
   let showAllHistory = false;
+  let domainStats = {};
+  let blockedDomains = [];
 
   /**
    * Generate season cards from SEASONAL_PALETTES data
@@ -72,6 +74,9 @@
     // Load color history
     await loadColorHistory();
 
+    // Load domain statistics
+    await loadDomainStats();
+
     // Set up event listeners
     setupEventListeners();
 
@@ -115,6 +120,21 @@
       chrome.runtime.sendMessage({ action: 'getColorHistory' }, (response) => {
         if (response) {
           colorHistory = response.history || [];
+        }
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Load domain statistics from storage
+   */
+  function loadDomainStats() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getDomainStats' }, (response) => {
+        if (response) {
+          domainStats = response.domainStats || {};
+          blockedDomains = response.blockedDomains || [];
         }
         resolve();
       });
@@ -179,6 +199,12 @@
     if (showAllHistoryBtn) {
       showAllHistoryBtn.addEventListener('click', toggleShowAllHistory);
     }
+
+    // Clear blocked domains
+    const clearBlockedDomainsBtn = document.getElementById('clear-blocked-domains');
+    if (clearBlockedDomainsBtn) {
+      clearBlockedDomainsBtn.addEventListener('click', clearBlockedDomains);
+    }
   }
 
   /**
@@ -215,6 +241,9 @@
 
     // Update color history display
     renderColorHistory();
+
+    // Update blocked domains display
+    renderBlockedDomains();
 
     // Highlight selected season
     document.querySelectorAll('.season-card').forEach(card => {
@@ -423,6 +452,91 @@
         wishlist = [];
         renderWishlist();
       }
+    });
+  }
+
+  /**
+   * Clear all blocked domains
+   */
+  function clearBlockedDomains() {
+    if (!confirm('Unblock all domains? This will allow the extension to try analyzing images from these domains again.')) {
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      action: 'clearBlockedDomains'
+    }, (response) => {
+      if (response && response.success) {
+        blockedDomains = [];
+        domainStats = {};
+        renderBlockedDomains();
+      }
+    });
+  }
+
+  /**
+   * Unblock a single domain
+   */
+  function unblockDomain(domain) {
+    chrome.runtime.sendMessage({
+      action: 'unblockDomain',
+      domain: domain
+    }, async (response) => {
+      if (response && response.success) {
+        // Reload domain stats
+        await loadDomainStats();
+        renderBlockedDomains();
+      }
+    });
+  }
+
+  /**
+   * Render blocked domains list
+   */
+  function renderBlockedDomains() {
+    const section = document.getElementById('blocked-domains-section');
+    const list = document.getElementById('blocked-domains-list');
+
+    if (!list || !section) return;
+
+    // Show/hide section based on whether there are blocked domains
+    if (blockedDomains.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+
+    // Render each blocked domain with statistics
+    list.innerHTML = blockedDomains.map(domain => {
+      const stats = domainStats[domain] || { corsBlocked: 0 };
+      const corsBlocked = stats.corsBlocked || 0;
+
+      return `
+        <div class="blocked-domain-item" role="listitem">
+          <div class="blocked-domain-info">
+            <div class="blocked-domain-name">${domain}</div>
+            <div class="blocked-domain-stats">
+              ${corsBlocked} CORS-blocked images detected
+            </div>
+          </div>
+          <button
+            class="btn btn-text btn-sm unblock-domain-btn"
+            data-domain="${domain}"
+            aria-label="Unblock ${domain}"
+          >
+            Unblock
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Add event listeners to unblock buttons
+    list.querySelectorAll('.unblock-domain-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const domain = btn.dataset.domain;
+        unblockDomain(domain);
+      });
     });
   }
 

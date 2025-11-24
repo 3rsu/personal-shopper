@@ -19,10 +19,18 @@
 
   let colorProcessor = null;
   let processedImages = new WeakSet(); // Track actual image elements we've analyzed
+  let processedSwatches = new WeakSet(); // Track analyzed swatch elements
   let stats = {
     totalImages: 0,
-    matchingImages: 0
+    matchingImages: 0,
+    totalSwatches: 0,
+    matchingSwatches: 0
   };
+
+  // Inactivity timer for auto-detection
+  let inactivityTimer = null;
+  let inactivityDelay = 2500; // 2.5 seconds
+  let hasShownSummary = false;
 
   /**
    * Initialize the extension
@@ -144,6 +152,9 @@
     } else {
       console.warn('[Season Color Checker] Overlay not available');
     }
+
+    // Set up inactivity detection for color swatches
+    setupInactivityDetection();
   }
 
   /**
@@ -271,6 +282,13 @@
       // Pre-check: Can we access this image's pixel data?
       if (!canAccessImageData(img)) {
         console.log('[Season Color Checker] CORS blocked, skipping:', img.src.substring(0, 80));
+
+        // Track CORS-blocked domain for statistics
+        const domain = getDomainFromUrl(img.src);
+        if (domain) {
+          trackCorsEvent(domain, 'blocked');
+        }
+
         stats.totalImages--; // Don't count this image
         return;
       }
@@ -438,7 +456,9 @@
    */
   function resetAndRefilter() {
     processedImages = new WeakSet(); // Reset by creating a new WeakSet
-    stats = { totalImages: 0, matchingImages: 0 };
+    processedSwatches = new WeakSet();
+    stats = { totalImages: 0, matchingImages: 0, totalSwatches: 0, matchingSwatches: 0 };
+    hasShownSummary = false;
     removeAllFilters();
     startFiltering();
   }
@@ -469,6 +489,247 @@
   function updateOverlay() {
     if (typeof window.updateOverlay === 'function') {
       window.updateOverlay(stats, settings);
+    }
+  }
+
+  /**
+   * ===================================
+   * COLOR SWATCH DETECTION FEATURE
+   * ===================================
+   */
+
+  /**
+   * Setup inactivity detection
+   */
+  function setupInactivityDetection() {
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        onUserIdle();
+      }, inactivityDelay);
+    };
+
+    // Reset timer on user activity
+    document.addEventListener('scroll', resetTimer, { passive: true });
+    document.addEventListener('mousemove', resetTimer, { passive: true });
+    document.addEventListener('click', resetTimer);
+    document.addEventListener('keydown', resetTimer);
+
+    // Start initial timer
+    resetTimer();
+  }
+
+  /**
+   * Called when user is idle for X seconds
+   */
+  function onUserIdle() {
+    // Only show summary once per page load
+    if (hasShownSummary) return;
+
+    // Find and process color swatches
+    const swatches = findColorSwatches();
+    if (swatches.length === 0) return;
+
+    console.log('[Season Color Checker] Found', swatches.length, 'color swatches to analyze');
+
+    // Process each swatch
+    swatches.forEach(swatch => {
+      if (!processedSwatches.has(swatch)) {
+        processSwatch(swatch);
+      }
+    });
+
+    // Show summary if we found swatches
+    if (stats.totalSwatches > 0) {
+      hasShownSummary = true;
+      showSwatchSummary();
+      updateOverlay();
+    }
+  }
+
+  /**
+   * Find color swatch elements on the page
+   */
+  function findColorSwatches() {
+    const swatches = [];
+
+    // Common swatch selectors for e-commerce sites
+    const swatchSelectors = [
+      '[class*="swatch"]',
+      '[class*="color-option"]',
+      '[class*="color-selector"]',
+      '[class*="colour"]',
+      '[class*="variant"]',
+      '[data-color]',
+      '[aria-label*="color"]',
+      '[aria-label*="colour"]'
+    ];
+
+    // Find elements matching common swatch patterns
+    swatchSelectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          if (isValidSwatch(el)) {
+            swatches.push(el);
+          }
+        });
+      } catch (e) {
+        // Invalid selector, skip
+      }
+    });
+
+    // Also look for small divs with solid background colors (common pattern)
+    const allDivs = document.querySelectorAll('div, span, button');
+    allDivs.forEach(el => {
+      const style = window.getComputedStyle(el);
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+
+      // Check if it's swatch-sized (20-80px) and has a background color
+      if (width >= 20 && width <= 80 && height >= 20 && height <= 80) {
+        const bgColor = style.backgroundColor;
+        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+          // Make sure it's not already in the list
+          if (!swatches.includes(el) && isValidSwatch(el)) {
+            swatches.push(el);
+          }
+        }
+      }
+    });
+
+    // Remove duplicates
+    return [...new Set(swatches)];
+  }
+
+  /**
+   * Check if element is a valid color swatch
+   */
+  function isValidSwatch(el) {
+    // Must be visible
+    if (el.offsetParent === null) return false;
+    if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;
+
+    const style = window.getComputedStyle(el);
+
+    // Must have a background color
+    const bgColor = style.backgroundColor;
+    if (!bgColor || bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent') {
+      return false;
+    }
+
+    // Skip if it's too large (likely not a swatch)
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    if (width > 100 || height > 100) return false;
+
+    // Skip if it's too small (likely an icon or decoration)
+    if (width < 15 || height < 15) return false;
+
+    return true;
+  }
+
+  /**
+   * Process a single color swatch
+   */
+  function processSwatch(swatch) {
+    processedSwatches.add(swatch);
+    stats.totalSwatches++;
+
+    try {
+      // Extract background color
+      const style = window.getComputedStyle(swatch);
+      const bgColor = style.backgroundColor;
+
+      // Convert rgba/rgb to hex
+      const hex = rgbStringToHex(bgColor);
+      if (!hex) {
+        stats.totalSwatches--;
+        return;
+      }
+
+      // Convert hex to RGB array for color processor
+      const rgb = colorProcessor.hexToRgb(hex);
+      if (!rgb) {
+        stats.totalSwatches--;
+        return;
+      }
+
+      // Get season palette
+      const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
+      if (!seasonPalette) {
+        stats.totalSwatches--;
+        return;
+      }
+
+      // Find closest matching color
+      const result = colorProcessor.findClosestColor([rgb], seasonPalette.colors);
+
+      // Store swatch data
+      swatch.dataset.swatchColor = hex;
+      swatch.dataset.swatchMatch = result.matches ? 'true' : 'false';
+      swatch.dataset.swatchDeltaE = result.distance.toFixed(1);
+
+      // Update stats
+      if (result.matches) {
+        stats.matchingSwatches++;
+      }
+
+      // Apply visual styling
+      applySwatchStyle(swatch, result);
+
+    } catch (error) {
+      console.error('[Season Color Checker] Error processing swatch:', error);
+      stats.totalSwatches--;
+    }
+  }
+
+  /**
+   * Convert rgb/rgba string to hex
+   */
+  function rgbStringToHex(rgbString) {
+    // Parse rgb(r, g, b) or rgba(r, g, b, a)
+    const match = rgbString.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!match) return null;
+
+    const r = parseInt(match[1]);
+    const g = parseInt(match[2]);
+    const b = parseInt(match[3]);
+
+    return colorProcessor.rgbToHex([r, g, b]);
+  }
+
+  /**
+   * Apply visual styling to swatch
+   */
+  function applySwatchStyle(swatch, result) {
+    // Remove existing classes
+    swatch.classList.remove('season-swatch-match', 'season-swatch-no-match');
+
+    // Add match/no-match class
+    if (result.matches) {
+      swatch.classList.add('season-swatch-match');
+    } else {
+      swatch.classList.add('season-swatch-no-match');
+    }
+
+    // Add tooltip
+    const hex = swatch.dataset.swatchColor;
+    const deltaE = swatch.dataset.swatchDeltaE;
+
+    if (result.matches) {
+      swatch.title = `✓ ${hex} matches your ${settings.selectedSeason} palette (ΔE ${deltaE})`;
+    } else {
+      swatch.title = `✗ ${hex} doesn't match (ΔE ${deltaE})`;
+    }
+  }
+
+  /**
+   * Show swatch summary notification
+   */
+  function showSwatchSummary() {
+    if (typeof window.showSwatchSummary === 'function') {
+      window.showSwatchSummary(stats, settings);
     }
   }
 
@@ -523,6 +784,34 @@
       });
     }
   }, true);
+
+  /**
+   * Helper function to extract domain from URL
+   */
+  function getDomainFromUrl(url) {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Track CORS event (notify service worker) - non-blocking
+   */
+  function trackCorsEvent(domain, eventType) {
+    if (!domain) return;
+
+    // Send to service worker for tracking (fire and forget - don't wait for response)
+    chrome.runtime.sendMessage({
+      action: 'trackCorsEvent',
+      domain: domain,
+      eventType: eventType
+    }).catch(() => {
+      // Ignore errors - tracking is optional
+    });
+  }
 
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {

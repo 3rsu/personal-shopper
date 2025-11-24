@@ -14,6 +14,8 @@
   let highlightEnabled = true;
   let lastPickedColor = null;
   let currentSettings = null;
+  let showAllColors = false;
+  let colorHistory = [];
 
   /**
    * Initialize the overlay widget
@@ -53,6 +55,9 @@
             <strong class="match-count">0</strong> of
             <strong class="total-count">0</strong> match
           </span>
+          <span class="swatch-stats" style="display: none; margin-top: 4px; font-size: 12px; color: #6b7280;">
+            <strong class="swatch-match-count">0</strong>/<strong class="swatch-total-count">0</strong> colors
+          </span>
         </div>
         <button class="season-overlay-close" title="Close">×</button>
       </div>
@@ -72,6 +77,12 @@
           </div>
         </div>
 
+        <button class="btn-show-all" style="display: none;">Show All</button>
+
+        <div class="color-history-expanded" style="display: none;">
+          <div class="color-history-list"></div>
+        </div>
+
         <div class="highlight-toggle-container">
           <label class="toggle-label">
             <input type="checkbox" class="highlight-toggle" checked>
@@ -86,6 +97,7 @@
     overlay.querySelector('.season-overlay-close').addEventListener('click', hideOverlay);
     overlay.querySelector('.btn-eyedropper').addEventListener('click', activateEyedropper);
     overlay.querySelector('.highlight-toggle').addEventListener('change', toggleHighlights);
+    overlay.querySelector('.btn-show-all').addEventListener('click', toggleShowAll);
 
     return overlay;
   }
@@ -103,6 +115,19 @@
 
     if (matchCount) matchCount.textContent = stats.matchingImages || 0;
     if (totalCount) totalCount.textContent = stats.totalImages || 0;
+
+    // Update swatch stats if available
+    const swatchStats = overlayElement.querySelector('.swatch-stats');
+    const swatchMatchCount = overlayElement.querySelector('.swatch-match-count');
+    const swatchTotalCount = overlayElement.querySelector('.swatch-total-count');
+
+    if (stats.totalSwatches > 0 && swatchStats && swatchMatchCount && swatchTotalCount) {
+      swatchMatchCount.textContent = stats.matchingSwatches || 0;
+      swatchTotalCount.textContent = stats.totalSwatches || 0;
+      swatchStats.style.display = 'block';
+    } else if (swatchStats) {
+      swatchStats.style.display = 'none';
+    }
   };
 
   /**
@@ -111,9 +136,18 @@
   function loadLastPickedColor() {
     chrome.storage.local.get(['colorHistory'], (result) => {
       if (result.colorHistory && result.colorHistory.length > 0) {
+        colorHistory = result.colorHistory;
         lastPickedColor = result.colorHistory[0];
         updateLastColorDisplay();
+        if (showAllColors) {
+          renderColorHistoryList();
+        }
+      } else {
+        colorHistory = [];
+        lastPickedColor = null;
       }
+      // Always update button visibility based on current color history
+      updateShowAllButton();
     });
   }
 
@@ -138,6 +172,82 @@
 
       display.style.display = 'block';
     }
+  }
+
+  /**
+   * Update Show All button visibility
+   */
+  function updateShowAllButton() {
+    if (!overlayElement) return;
+
+    const showAllBtn = overlayElement.querySelector('.btn-show-all');
+    if (!showAllBtn) return;
+
+    if (colorHistory.length > 0) {
+      showAllBtn.style.display = 'block';
+      showAllBtn.textContent = showAllColors ? 'Show Less' : 'Show All';
+    } else {
+      showAllBtn.style.display = 'none';
+    }
+  }
+
+  /**
+   * Toggle show all colors
+   */
+  function toggleShowAll() {
+    showAllColors = !showAllColors;
+
+    if (!overlayElement) return;
+
+    const expandedContainer = overlayElement.querySelector('.color-history-expanded');
+    const lastColorDisplay = overlayElement.querySelector('.last-color-display');
+    const showAllBtn = overlayElement.querySelector('.btn-show-all');
+
+    if (showAllColors) {
+      // Show expanded list, hide single display
+      if (lastColorDisplay) lastColorDisplay.style.display = 'none';
+      if (expandedContainer) expandedContainer.style.display = 'block';
+      if (showAllBtn) showAllBtn.textContent = 'Show Less';
+      renderColorHistoryList();
+    } else {
+      // Show single display, hide expanded list
+      if (expandedContainer) expandedContainer.style.display = 'none';
+      if (lastColorDisplay) lastColorDisplay.style.display = 'block';
+      if (showAllBtn) showAllBtn.textContent = 'Show All';
+    }
+  }
+
+  /**
+   * Render color history list (multiple colors)
+   */
+  function renderColorHistoryList() {
+    if (!overlayElement || colorHistory.length === 0) return;
+
+    const listContainer = overlayElement.querySelector('.color-history-list');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+
+    // Show up to 10 colors
+    const colorsToShow = colorHistory.slice(0, 10);
+
+    colorsToShow.forEach((color) => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+
+      const matchText = color.match ? `✓ ΔE ${color.distance}` : `✗ ΔE ${color.distance}`;
+      const matchClass = color.match ? 'match' : 'no-match';
+
+      item.innerHTML = `
+        <div class="history-swatch" style="background: ${color.hex};"></div>
+        <div class="history-info">
+          <div class="history-hex">${color.hex}</div>
+          <div class="history-match ${matchClass}">${matchText}</div>
+        </div>
+      `;
+
+      listContainer.appendChild(item);
+    });
   }
 
   /**
@@ -242,4 +352,111 @@
       loadLastPickedColor();
     }
   });
+
+  /**
+   * ===================================
+   * SWATCH SUMMARY NOTIFICATION
+   * ===================================
+   */
+
+  let summaryNotification = null;
+  let summaryTimeout = null;
+
+  /**
+   * Show swatch summary notification
+   */
+  window.showSwatchSummary = function (stats, settings) {
+    // Remove existing notification if any
+    if (summaryNotification) {
+      summaryNotification.remove();
+      clearTimeout(summaryTimeout);
+    }
+
+    // Don't show if no swatches found
+    if (stats.totalSwatches === 0) return;
+
+    // Create notification
+    summaryNotification = createSummaryNotification(stats, settings);
+    document.body.appendChild(summaryNotification);
+
+    // Auto-dismiss after 5 seconds
+    summaryTimeout = setTimeout(() => {
+      dismissSummary();
+    }, 5000);
+  };
+
+  /**
+   * Create summary notification HTML
+   */
+  function createSummaryNotification(stats, settings) {
+    const notification = document.createElement('div');
+    notification.className = 'season-swatch-summary';
+
+    const matchCount = stats.matchingSwatches;
+    const totalCount = stats.totalSwatches;
+
+    // Determine icon and message based on results
+    let icon = '✓';
+    let message = '';
+    let className = 'has-matches';
+
+    if (matchCount === 0) {
+      icon = '✗';
+      message = `None of the ${totalCount} colors match your ${formatSeasonName(settings.selectedSeason)} palette`;
+      className = 'no-matches';
+    } else if (matchCount === totalCount) {
+      icon = '✓';
+      message = `All ${totalCount} colors match your ${formatSeasonName(settings.selectedSeason)} palette`;
+      className = 'all-matches';
+    } else {
+      icon = '✓';
+      message = `${matchCount} of ${totalCount} colors match your ${formatSeasonName(settings.selectedSeason)} palette`;
+      className = 'has-matches';
+    }
+
+    notification.innerHTML = `
+      <div class="summary-content ${className}">
+        <span class="summary-icon">${icon}</span>
+        <span class="summary-message">${message}</span>
+        <button class="summary-close" title="Close">×</button>
+      </div>
+    `;
+
+    // Close button handler
+    notification.querySelector('.summary-close').addEventListener('click', dismissSummary);
+
+    return notification;
+  }
+
+  /**
+   * Format season name for display
+   */
+  function formatSeasonName(season) {
+    if (!season) return '';
+    // Convert 'bright-spring' to 'Bright Spring'
+    return season
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  /**
+   * Dismiss summary notification
+   */
+  function dismissSummary() {
+    if (summaryNotification) {
+      summaryNotification.classList.add('fade-out');
+      setTimeout(() => {
+        if (summaryNotification) {
+          summaryNotification.remove();
+          summaryNotification = null;
+        }
+      }, 300);
+    }
+    if (summaryTimeout) {
+      clearTimeout(summaryTimeout);
+      summaryTimeout = null;
+    }
+  }
+
 })();

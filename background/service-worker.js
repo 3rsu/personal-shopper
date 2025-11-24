@@ -16,7 +16,9 @@ let storageCache = {
   selectedSeason: null,
   filterEnabled: true,
   wishlist: [],
-  colorHistory: []
+  colorHistory: [],
+  domainStats: {},
+  blockedDomains: []
 };
 
 /**
@@ -31,7 +33,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
 
     chrome.storage.local.set({
-      wishlist: []
+      wishlist: [],
+      domainStats: {},
+      blockedDomains: []
     });
 
     // Open welcome page
@@ -52,9 +56,14 @@ chrome.storage.sync.get(['selectedSeason', 'filterEnabled'], (data) => {
   storageCache.filterEnabled = data.filterEnabled !== false; // Default true
 });
 
-chrome.storage.local.get(['wishlist', 'colorHistory'], (data) => {
+chrome.storage.local.get(['wishlist', 'colorHistory', 'domainStats', 'blockedDomains'], (data) => {
   storageCache.wishlist = data.wishlist || [];
   storageCache.colorHistory = data.colorHistory || [];
+  storageCache.domainStats = data.domainStats || {};
+  storageCache.blockedDomains = data.blockedDomains || [];
+
+  // Update badge on startup
+  updateBadge();
 });
 
 /**
@@ -74,6 +83,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
     if (changes.colorHistory) {
       storageCache.colorHistory = changes.colorHistory.newValue;
+    }
+    if (changes.domainStats) {
+      storageCache.domainStats = changes.domainStats.newValue;
+    }
+    if (changes.blockedDomains) {
+      storageCache.blockedDomains = changes.blockedDomains.newValue;
     }
   }
 });
@@ -245,8 +260,141 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // Track CORS event from content script
+  if (request.action === 'trackCorsEvent') {
+    const { domain, eventType } = request;
+    trackDomainCorsEvent(domain, eventType);
+    // No response needed - fire and forget
+    return false;
+  }
+
+  // Get domain statistics
+  if (request.action === 'getDomainStats') {
+    sendResponse({
+      domainStats: storageCache.domainStats,
+      blockedDomains: storageCache.blockedDomains
+    });
+    return true;
+  }
+
+  // Unblock a domain
+  if (request.action === 'unblockDomain') {
+    const domain = request.domain;
+    storageCache.blockedDomains = storageCache.blockedDomains.filter(d => d !== domain);
+
+    // Reset domain statistics
+    if (storageCache.domainStats[domain]) {
+      delete storageCache.domainStats[domain];
+    }
+
+    chrome.storage.local.set({
+      blockedDomains: storageCache.blockedDomains,
+      domainStats: storageCache.domainStats
+    }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // Clear all blocked domains
+  if (request.action === 'clearBlockedDomains') {
+    storageCache.blockedDomains = [];
+    storageCache.domainStats = {};
+
+    chrome.storage.local.set({
+      blockedDomains: [],
+      domainStats: {}
+    }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // Manual block domain
+  if (request.action === 'blockDomain') {
+    const domain = request.domain;
+    if (!storageCache.blockedDomains.includes(domain)) {
+      storageCache.blockedDomains.push(domain);
+
+      chrome.storage.local.set({
+        blockedDomains: storageCache.blockedDomains
+      }, () => {
+        sendResponse({ success: true });
+      });
+    } else {
+      sendResponse({ success: true });
+    }
+    return true;
+  }
+
   return false;
 });
+
+/**
+ * Track CORS events for domain statistics
+ */
+function trackDomainCorsEvent(domain, eventType) {
+  if (!domain) return;
+
+  // Initialize domain stats if not exists
+  if (!storageCache.domainStats[domain]) {
+    storageCache.domainStats[domain] = {
+      corsBlocked: 0,
+      lastCheck: Date.now()
+    };
+  }
+
+  const stats = storageCache.domainStats[domain];
+  stats.lastCheck = Date.now();
+
+  // Update counter
+  if (eventType === 'blocked') {
+    stats.corsBlocked++;
+  }
+
+  // Auto-block domain if too many CORS failures
+  // Threshold: at least 20 CORS-blocked images
+  const MIN_BLOCKED = 20;
+
+  if (stats.corsBlocked >= MIN_BLOCKED) {
+    if (!storageCache.blockedDomains.includes(domain)) {
+      storageCache.blockedDomains.push(domain);
+      console.log(`[Season Color Checker] Auto-blocked domain: ${domain} (${stats.corsBlocked} CORS-blocked images)`);
+
+      // Update badge to show blocked domains count
+      updateBadge();
+    }
+  }
+
+  // Save to storage (debounce this to avoid too many writes)
+  if (!trackDomainCorsEvent.saveTimeout) {
+    trackDomainCorsEvent.saveTimeout = setTimeout(() => {
+      chrome.storage.local.set({
+        domainStats: storageCache.domainStats,
+        blockedDomains: storageCache.blockedDomains
+      });
+      trackDomainCorsEvent.saveTimeout = null;
+    }, 1000); // Save at most once per second
+  }
+}
+
+/**
+ * Update extension badge to show blocked domains count
+ */
+function updateBadge() {
+  const count = storageCache.blockedDomains.length;
+
+  if (count > 0) {
+    chrome.action.setBadgeText({ text: count.toString() });
+    chrome.action.setBadgeBackgroundColor({ color: '#FF6B6B' });
+    chrome.action.setTitle({
+      title: `Season Color Checker - ${count} domain${count > 1 ? 's' : ''} blocked`
+    });
+  } else {
+    chrome.action.setBadgeText({ text: '' });
+    chrome.action.setTitle({ title: 'Season Color Checker' });
+  }
+}
 
 /**
  * Handle extension icon click (optional - popup already opens automatically)

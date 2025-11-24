@@ -770,3 +770,89 @@ body::-webkit-scrollbar-thumb:hover {
   border-color: #a9d4c0;
   color: #4a6456;
 }
+
+/* ========== Blocked Domains Section ========== */
+
+.blocked-info {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 107, 107, 0.05);
+  border-left: 3px solid #ff6b6b;
+  border-radius: 6px;
+}
+
+.info-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.blocked-domains-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blocked-domain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.blocked-domain-item:hover {
+  border-color: #ff6b6b;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.08);
+}
+
+.blocked-domain-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.blocked-domain-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.blocked-domain-stats {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.stat-label {
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.unblock-domain-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #ff6b6b;
+  background: transparent;
+  border: 1px solid #ff6b6b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.unblock-domain-btn:hover {
+  background: #ff6b6b;
+  color: #ffffff;
+}
+
+.unblock-domain-btn:active {
+  transform: scale(0.98);
+}

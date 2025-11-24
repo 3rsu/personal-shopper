@@ -11,7 +11,7 @@
     <div class="header">
       <h1 class="title">
         <img src="../icons/blob.png" alt="" class="icon" />
-        My Wardrobe
+        Shop your Color
       </h1>
       <label
         class="toggle-switch"
@@ -87,6 +87,28 @@
             Show All
           </button>
         </div>
+      </section>
+
+      <!-- Blocked Domains Section -->
+      <section class="section section-divider" id="blocked-domains-section" style="display: none">
+        <div class="section-header">
+          <h2 class="section-title">Blocked Domains</h2>
+          <button
+            class="btn btn-text btn-sm"
+            id="clear-blocked-domains"
+            aria-label="Clear all blocked domains"
+          >
+            Unblock All
+          </button>
+        </div>
+
+        <div class="blocked-info">
+          <p class="info-text">
+            Domains are auto-blocked when 20+ CORS-protected images are detected. Unblock to re-enable analysis for these domains.
+          </p>
+        </div>
+
+        <div id="blocked-domains-list" class="blocked-domains-list" role="list"></div>
       </section>
 
       <!-- Wishlist Section -->
