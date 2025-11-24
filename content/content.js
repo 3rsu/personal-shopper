@@ -18,7 +18,6 @@
   };
 
   let colorProcessor = null;
-  let backgroundRemover = null;
   let processedImages = new WeakSet(); // Track actual image elements we've analyzed
   let processedSwatches = new WeakSet(); // Track analyzed swatch elements
   let stats = {
@@ -47,18 +46,10 @@
     // Load color processor
     if (typeof ColorProcessor !== 'undefined') {
       colorProcessor = new ColorProcessor();
-      console.log('[Season Color Checker] ColorProcessor initialized');
+      console.log('[Season Color Checker] ColorProcessor initialized with smart background filtering');
     } else {
       console.error('[Season Color Checker] ERROR: ColorProcessor not loaded! Check manifest.json');
       return;
-    }
-
-    // Load background remover
-    if (typeof BackgroundRemover !== 'undefined') {
-      backgroundRemover = new BackgroundRemover();
-      console.log('[Season Color Checker] BackgroundRemover initialized');
-    } else {
-      console.warn('[Season Color Checker] WARNING: BackgroundRemover not loaded - will use images without background removal');
     }
 
     // Load settings from background
@@ -237,43 +228,185 @@
   }
 
   /**
-   * Crop upper portion of canvas to remove header/background areas
-   * @param {HTMLCanvasElement|HTMLImageElement} source - Canvas or image to crop
-   * @param {number} divisor - Portion to remove (e.g., 6.5 means remove upper 1/6.5)
-   * @returns {HTMLCanvasElement|null} - Cropped canvas or null on error
+   * Sample colors from border points around the image perimeter
+   * @param {HTMLImageElement|HTMLCanvasElement} img - Image to sample
+   * @returns {Array<Array<number>>} - Array of RGB color arrays
    */
-  function cropUpperPortion(source, divisor = 6.5) {
+  function sampleBorder(img) {
     try {
-      // Get source dimensions
-      const sourceWidth = source.width || source.naturalWidth;
-      const sourceHeight = source.height || source.naturalHeight;
+      const canvas = document.createElement('canvas');
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
 
-      if (!sourceWidth || !sourceHeight) {
+      const samples = [];
+      const samplePoints = [
+        // Corners
+        [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+        // Midpoints of edges
+        [Math.floor(width / 2), 0], [Math.floor(width / 2), height - 1],
+        [0, Math.floor(height / 2)], [width - 1, Math.floor(height / 2)],
+        // Quarter points
+        [Math.floor(width / 4), 0], [Math.floor(3 * width / 4), 0],
+        [Math.floor(width / 4), height - 1], [Math.floor(3 * width / 4), height - 1]
+      ];
+
+      for (const [x, y] of samplePoints) {
+        const pixel = ctx.getImageData(x, y, 1, 1).data;
+        samples.push([pixel[0], pixel[1], pixel[2]]);
+      }
+
+      return samples;
+    } catch (e) {
+      console.error('[Season Color Checker] Error sampling border:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Find the dominant background color from border samples using clustering
+   * @param {Array<Array<number>>} borderColors - Array of RGB color arrays
+   * @returns {Array<number>|null} - RGB array of background color, or null
+   */
+  function findDominantBackgroundColor(borderColors) {
+    if (!borderColors || borderColors.length === 0) return null;
+
+    // Group similar colors (deltaE < 10 threshold)
+    const clusters = [];
+
+    for (const color of borderColors) {
+      let foundCluster = false;
+
+      for (const cluster of clusters) {
+        const clusterAvg = cluster.colors[0]; // Use first color as representative
+        const deltaE = colorProcessor.calculateDeltaE(color, clusterAvg);
+
+        if (deltaE < 10) {
+          cluster.colors.push(color);
+          foundCluster = true;
+          break;
+        }
+      }
+
+      if (!foundCluster) {
+        clusters.push({ colors: [color] });
+      }
+    }
+
+    // Find largest cluster (most common background color)
+    let largestCluster = clusters[0];
+    for (const cluster of clusters) {
+      if (cluster.colors.length > largestCluster.colors.length) {
+        largestCluster = cluster;
+      }
+    }
+
+    // Return average of cluster colors
+    if (largestCluster && largestCluster.colors.length > 0) {
+      const avgR = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[0], 0) / largestCluster.colors.length);
+      const avgG = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[1], 0) / largestCluster.colors.length);
+      const avgB = Math.round(largestCluster.colors.reduce((sum, c) => sum + c[2], 0) / largestCluster.colors.length);
+      return [avgR, avgG, avgB];
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract center region of image, removing border percentages
+   * @param {HTMLImageElement|HTMLCanvasElement} img - Image to crop
+   * @returns {HTMLCanvasElement|null} - Cropped canvas focused on center product
+   */
+  function extractCenterRegion(img) {
+    try {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+
+      // Calculate crop percentages
+      const cropLeft = Math.floor(width * 0.20); // Remove 20% from left
+      const cropRight = Math.floor(width * 0.20); // Remove 20% from right
+      const cropTop = Math.floor(height * 0.15); // Remove 15% from top
+      const cropBottom = Math.floor(height * 0.10); // Remove 10% from bottom
+
+      const croppedWidth = width - cropLeft - cropRight;
+      const croppedHeight = height - cropTop - cropBottom;
+
+      if (croppedWidth <= 0 || croppedHeight <= 0) {
         return null;
       }
 
-      // Calculate crop area (remove upper 1/divisor)
-      const cropTop = Math.floor(sourceHeight / divisor);
-      const croppedHeight = sourceHeight - cropTop;
-
-      // Create new canvas with cropped dimensions
+      // Create canvas with cropped dimensions
       const canvas = document.createElement('canvas');
-      canvas.width = sourceWidth;
+      canvas.width = croppedWidth;
       canvas.height = croppedHeight;
       const ctx = canvas.getContext('2d');
 
-      // Draw cropped portion
+      // Draw center region
       ctx.drawImage(
-        source,
-        0, cropTop, sourceWidth, croppedHeight, // Source: skip top portion
-        0, 0, sourceWidth, croppedHeight         // Dest: fill canvas
+        img,
+        cropLeft, cropTop, croppedWidth, croppedHeight, // Source: center region
+        0, 0, croppedWidth, croppedHeight // Dest: fill canvas
       );
 
       return canvas;
     } catch (e) {
-      console.error('[Season Color Checker] Error cropping image:', e);
+      console.error('[Season Color Checker] Error extracting center region:', e);
       return null;
     }
+  }
+
+  /**
+   * Calculate HSL saturation from RGB
+   * @param {Array<number>} rgb - RGB color array [r, g, b]
+   * @returns {number} - Saturation value (0-1)
+   */
+  function getSaturation(rgb) {
+    const r = rgb[0] / 255;
+    const g = rgb[1] / 255;
+    const b = rgb[2] / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+
+    if (delta === 0) return 0;
+
+    const lightness = (max + min) / 2;
+
+    if (lightness === 0 || lightness === 1) return 0;
+
+    return delta / (1 - Math.abs(2 * lightness - 1));
+  }
+
+  /**
+   * Filter out background and desaturated colors from palette
+   * @param {Array<Array<number>>} palette - Array of RGB color arrays
+   * @param {Array<number>|null} backgroundColor - RGB array of detected background
+   * @returns {Array<Array<number>>} - Filtered palette
+   */
+  function filterBackgroundColors(palette, backgroundColor) {
+    if (!palette || palette.length === 0) return palette;
+
+    return palette.filter(color => {
+      // Filter out colors similar to background (deltaE < 15)
+      if (backgroundColor) {
+        const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
+        if (deltaE < 15) {
+          return false;
+        }
+      }
+
+      // Filter out very desaturated colors (likely backgrounds/neutrals)
+      const saturation = getSaturation(color);
+      if (saturation < 0.15) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
   /**
@@ -455,32 +588,38 @@
 
       const colorThief = new ColorThief();
       let dominantColors;
+      let backgroundColor = null;
 
       try {
-        // Remove background before color extraction
-        let imageToAnalyze = processableImage;
-
-        if (backgroundRemover) {
-          // removeBackground with excludeTopPortion=false (we'll crop manually after)
-          const cleanedCanvas = await backgroundRemover.removeBackground(processableImage, false);
-          if (cleanedCanvas) {
-            console.log('[Season Color Checker] Background removed for color analysis');
-
-            // Crop upper 1/6.5 portion to focus on main product area (after background removal)
-            const croppedCanvas = cropUpperPortion(cleanedCanvas, 6.5);
-            if (croppedCanvas) {
-              console.log('[Season Color Checker] Cropped upper 1/6.5 portion');
-              imageToAnalyze = croppedCanvas;
-            } else {
-              imageToAnalyze = cleanedCanvas;
-            }
-          } else {
-            console.log('[Season Color Checker] Background removal failed, using original image');
+        // Step 1: Sample border colors to detect background
+        const borderColors = sampleBorder(processableImage);
+        if (borderColors.length > 0) {
+          backgroundColor = findDominantBackgroundColor(borderColors);
+          if (backgroundColor) {
+            console.log('[Season Color Checker] Detected background color:', colorProcessor.rgbToHex(backgroundColor));
           }
         }
 
-        // Extract colors from cleaned image (or original if background removal failed)
-        dominantColors = colorThief.getPalette(imageToAnalyze, 5);
+        // Step 2: Extract center region (remove 20% L/R, 15% top, 10% bottom)
+        let imageToAnalyze = processableImage;
+        const centerCanvas = extractCenterRegion(processableImage);
+        if (centerCanvas) {
+          console.log('[Season Color Checker] Extracted center region for analysis');
+          imageToAnalyze = centerCanvas;
+        } else {
+          console.log('[Season Color Checker] Center extraction failed, using full image');
+        }
+
+        // Step 3: Extract dominant colors from center region
+        const rawColors = colorThief.getPalette(imageToAnalyze, 8); // Get more colors initially
+
+        // Step 4: Filter out background and desaturated colors
+        dominantColors = filterBackgroundColors(rawColors, backgroundColor);
+
+        // Take top 5 after filtering
+        dominantColors = dominantColors.slice(0, 5);
+
+        console.log('[Season Color Checker] Filtered palette:', dominantColors.length, 'colors after background removal');
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -488,7 +627,7 @@
       }
 
       if (!dominantColors || dominantColors.length === 0) {
-        console.log('[Season Color Checker] No colors extracted');
+        console.log('[Season Color Checker] No colors extracted after filtering');
         return;
       }
 
