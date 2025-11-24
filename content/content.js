@@ -16,7 +16,7 @@
     selectedSeason: null,
     filterEnabled: true,
     faceDetectionEnabled: true, // Enable face/skin/hair detection
-    textColorEnhancementEnabled: true // Enable text-based color enhancement
+    textColorEnhancementEnabled: true, // Enable text-based color enhancement
   };
 
   let colorProcessor = null;
@@ -38,19 +38,6 @@
    * Initialize the extension
    */
   async function initialize() {
-    console.log('[Season Color Checker] Initializing...');
-
-    // Check dependencies
-    console.log('[Season Color Checker] ColorThief available:', typeof ColorThief !== 'undefined');
-    console.log(
-      '[Season Color Checker] SEASONAL_PALETTES available:',
-      typeof SEASONAL_PALETTES !== 'undefined',
-    );
-    console.log(
-      '[Season Color Checker] ColorProcessor available:',
-      typeof ColorProcessor !== 'undefined',
-    );
-
     // Load color processor
     if (typeof ColorProcessor !== 'undefined') {
       colorProcessor = new ColorProcessor();
@@ -200,7 +187,6 @@
    */
   function findAndProcessImages() {
     const images = findProductImages();
-    console.log('[Season Color Checker] Found', images.length, 'product images to analyze');
 
     images.forEach((img) => {
       if (!processedImages.has(img)) {
@@ -208,7 +194,6 @@
       }
     });
 
-    console.log('[Season Color Checker] Processing complete. Stats:', stats);
     updateOverlay();
   }
 
@@ -816,6 +801,8 @@
     processedImages.add(img);
     stats.totalImages++;
 
+    const startTime = performance.now(); // Track processing time
+
     try {
       // Wait for image to load
       if (!img.complete) {
@@ -830,6 +817,83 @@
         stats.totalImages--; // Don't count this image
         return;
       }
+
+      // ========================================
+      // STEP 1: SWATCH-FIRST PROCESSING (NEW)
+      // Try to detect website swatch BEFORE ColorThief
+      // ========================================
+      if (typeof findSelectedSwatchForImage === 'function') {
+        try {
+          const selectedSwatch = findSelectedSwatchForImage(img);
+
+          if (selectedSwatch) {
+            const swatchColor = extractSwatchColor(selectedSwatch);
+
+            if (swatchColor && swatchColor.confidence >= 0.7) {
+              // High-confidence swatch detected! Skip ColorThief processing
+              const processingTime = (performance.now() - startTime).toFixed(1);
+              console.log(
+                `[Season Color Checker] 🎨 Using website swatch (${swatchColor.source}, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
+              );
+              console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
+
+              // Get season palette
+              const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
+              if (!seasonPalette) {
+                console.warn(
+                  '[Season Color Checker] Invalid season selected:',
+                  settings.selectedSeason,
+                );
+                return;
+              }
+
+              // Use findClosestMatch for simple binary matching
+              const matchResult = colorProcessor.findClosestMatch(
+                swatchColor.hex,
+                seasonPalette.colors,
+              );
+
+              // Store swatch data on element
+              img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
+              img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
+              img.dataset.selectedSwatchColor = swatchColor.hex;
+              img.dataset.selectedSwatchSource = swatchColor.source;
+              img.dataset.dominantColors = JSON.stringify([swatchColor.hex]);
+              img.dataset.swatchOnly = 'true'; // Flag for display logic
+
+              // Apply simplified filter (match or no-match only)
+              applySwatchOnlyFilter(img, matchResult, swatchColor);
+
+              // Update stats
+              if (matchResult.isMatch) {
+                stats.matchingImages++;
+              }
+
+              // Log performance savings
+              console.log(
+                `[Season Color Checker] ⚡ Skipped ColorThief processing (saved ~100-150ms)`,
+              );
+
+              return; // EARLY EXIT - Skip ColorThief entirely
+            } else if (swatchColor) {
+              console.log(
+                `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(2)} < 0.7), falling back to ColorThief`,
+              );
+            }
+          }
+        } catch (swatchError) {
+          console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
+          // Fall through to ColorThief processing
+        }
+      }
+
+      // ========================================
+      // STEP 2: COLORTHIEF FALLBACK PROCESSING
+      // Only runs if no high-confidence swatch detected
+      // ========================================
+      console.log(
+        '[Season Color Checker] 🤖 Using ColorThief analysis (no high-confidence swatch detected)',
+      );
 
       // Extract dominant colors using Color Thief
       if (typeof ColorThief === 'undefined') {
@@ -904,16 +968,26 @@
         );
 
         // NEW Step 5: Extract text color mentions and apply weighting
-        if (settings.textColorEnhancementEnabled && typeof extractColorKeywordsFromDOM === 'function') {
+        if (
+          settings.textColorEnhancementEnabled &&
+          typeof extractColorKeywordsFromDOM === 'function'
+        ) {
           try {
             const textColorMentions = extractColorKeywordsFromDOM(img);
 
             if (textColorMentions && textColorMentions.length > 0) {
-              console.log('[Season Color Checker] Found text color mentions:', textColorMentions.map(m => m.keyword).join(', '));
+              console.log(
+                '[Season Color Checker] Found text color mentions:',
+                textColorMentions.map((m) => m.keyword).join(', '),
+              );
 
               // Apply text-based weighting to palette
               if (typeof applyTextColorWeighting === 'function') {
-                const weightedPalette = applyTextColorWeighting(dominantColors, textColorMentions, colorProcessor);
+                const weightedPalette = applyTextColorWeighting(
+                  dominantColors,
+                  textColorMentions,
+                  colorProcessor,
+                );
 
                 // Use selectFinalPalette to ensure text-matched colors are preserved
                 if (typeof selectFinalPalette === 'function') {
@@ -921,12 +995,17 @@
                   dominantColors = selectFinalPalette(weightedPalette, 5, 2);
                 } else {
                   // Fallback: simple slice (old behavior)
-                  dominantColors = weightedPalette.map(item => item.rgb).slice(0, 5);
+                  dominantColors = weightedPalette.map((item) => item.rgb).slice(0, 5);
                 }
 
                 // Optionally augment palette with high-confidence text colors not in visual palette
                 if (typeof augmentPaletteWithTextColors === 'function') {
-                  dominantColors = augmentPaletteWithTextColors(dominantColors, textColorMentions, colorProcessor, 2);
+                  dominantColors = augmentPaletteWithTextColors(
+                    dominantColors,
+                    textColorMentions,
+                    colorProcessor,
+                    2,
+                  );
                 }
               }
             } else {
@@ -975,7 +1054,6 @@
             // Continue without swatch enhancement - not critical
           }
         }
-
       } catch (e) {
         console.log('[Season Color Checker] Error extracting colors:', e.message);
         stats.totalImages--; // Don't count this image
@@ -1052,9 +1130,37 @@
       img.dataset.productSeason = productSeasonResult.primarySeason?.seasonKey || 'unknown';
       img.dataset.productSeasonName = productSeasonResult.primarySeason?.seasonName || 'Unknown';
       img.dataset.compatibilityType = compatibility.matchType || 'none';
-      img.dataset.dominantColors = JSON.stringify(
-        dominantColors.slice(0, 3).map((rgb) => colorProcessor.rgbToHex(rgb)),
-      );
+
+      // Build display palette: selected swatch first (if exists), then top ColorThief colors
+      let displayColors;
+      if (img.dataset.selectedSwatchColor) {
+        const swatchHex = img.dataset.selectedSwatchColor;
+        const colorThiefHexes = dominantColors
+          .slice(0, 3)
+          .map((rgb) => colorProcessor.rgbToHex(rgb));
+
+        // Filter out colors too similar to the selected swatch (deltaE < 15 = essentially same color)
+        const uniqueColors = colorThiefHexes.filter((hex) => {
+          const deltaE = colorProcessor.calculateDeltaE(
+            colorProcessor.hexToRgb(hex),
+            colorProcessor.hexToRgb(swatchHex),
+          );
+          return deltaE >= 15; // Keep only colors that are visually distinct
+        });
+
+        // Display: [selected swatch] + [top 2 unique ColorThief colors]
+        displayColors = [swatchHex, ...uniqueColors.slice(0, 2)];
+        console.log(
+          '[Season Color Checker] Display palette:',
+          displayColors,
+          '(website swatch + ColorThief)',
+        );
+      } else {
+        // No selected swatch detected, use ColorThief colors only
+        displayColors = dominantColors.slice(0, 3).map((rgb) => colorProcessor.rgbToHex(rgb));
+      }
+
+      img.dataset.dominantColors = JSON.stringify(displayColors);
       img.dataset.seasonData = JSON.stringify({
         primary: productSeasonResult.primarySeason,
         secondary: productSeasonResult.secondarySeasons,
@@ -1079,6 +1185,67 @@
     } catch (error) {
       console.error('Error processing image:', error);
     }
+  }
+
+  /**
+   * Apply simplified visual filter for swatch-only mode
+   * Used when skipping ColorThief and relying solely on website swatch
+   */
+  function applySwatchOnlyFilter(img, matchResult, swatchColor) {
+    // Remove existing filter classes
+    img.classList.remove('season-match', 'season-no-match');
+
+    // Make the image itself position: relative so badge can be positioned
+    img.style.position = 'relative';
+
+    // Add container wrapper if needed
+    let container = img.closest('.season-filter-container');
+    if (!container) {
+      // Check if the parent can be used as container
+      const parent = img.parentElement;
+
+      // Try to use parent if it's already position: relative/absolute
+      const parentStyle = window.getComputedStyle(parent);
+      if (parentStyle.position === 'relative' || parentStyle.position === 'absolute') {
+        container = parent;
+        container.classList.add('season-filter-container');
+      } else {
+        // Only wrap if absolutely necessary
+        container = document.createElement('div');
+        container.className = 'season-filter-container';
+
+        // Copy important layout properties from img to container
+        const imgStyle = window.getComputedStyle(img);
+        if (imgStyle.width && imgStyle.width !== 'auto') {
+          container.style.width = imgStyle.width;
+        }
+        if (imgStyle.height && imgStyle.height !== 'auto') {
+          container.style.height = imgStyle.height;
+        }
+
+        img.parentNode.insertBefore(container, img);
+        container.appendChild(img);
+      }
+    }
+
+    if (matchResult.isMatch) {
+      // Green border for matches
+      img.classList.add('season-match');
+      container.classList.remove('season-dimmed');
+    } else {
+      // Dim non-matches
+      img.classList.add('season-no-match');
+      container.classList.add('season-dimmed');
+    }
+
+    // Add single color swatch display
+    addColorPaletteSwatch(container, img);
+
+    // Add simplified match badge (checkmark or X only)
+    addSwatchOnlyBadge(container, matchResult, swatchColor);
+
+    // Add simple tooltip
+    addSwatchOnlyTooltip(img, matchResult, swatchColor);
   }
 
   /**
@@ -1165,18 +1332,27 @@
       paletteContainer.className = 'color-palette-swatch-container';
 
       // Create a swatch for each dominant color
-      dominantColors.forEach((hexColor) => {
+      dominantColors.forEach((hexColor, index) => {
         const swatch = document.createElement('div');
-        swatch.className = 'color-swatch';
+        swatch.className = 'season-color-swatch';
         swatch.style.backgroundColor = hexColor;
-        swatch.title = hexColor; // Show hex value on hover
+
+        // Mark first swatch if it came from website selection
+        if (index === 0 && img.dataset.selectedSwatchColor === hexColor) {
+          swatch.classList.add('website-sourced');
+          swatch.dataset.fromWebsite = 'true';
+          swatch.title = `${hexColor} (from website)`;
+        } else {
+          swatch.title = hexColor; // Show hex value on hover
+        }
+
         paletteContainer.appendChild(swatch);
       });
 
       // Add skin tone swatch if detected
       if (img.dataset.skinTone) {
         const skinSwatch = document.createElement('div');
-        skinSwatch.className = 'color-swatch skin-tone-swatch';
+        skinSwatch.className = 'season-color-swatch skin-tone-swatch';
         skinSwatch.style.backgroundColor = img.dataset.skinTone;
         skinSwatch.title = `Skin Tone: ${img.dataset.skinTone}`;
         skinSwatch.textContent = '👤'; // Person icon
@@ -1186,7 +1362,7 @@
       // Add hair color swatch if detected
       if (img.dataset.hairColor) {
         const hairSwatch = document.createElement('div');
-        hairSwatch.className = 'color-swatch hair-color-swatch';
+        hairSwatch.className = 'season-color-swatch hair-color-swatch';
         hairSwatch.style.backgroundColor = img.dataset.hairColor;
         hairSwatch.title = `Hair Color: ${img.dataset.hairColor}`;
         hairSwatch.textContent = '✂️'; // Scissors icon (represents hair)
@@ -1268,6 +1444,53 @@
       if (compatibility.recommendation) {
         tooltip += `\n${compatibility.recommendation}`;
       }
+    }
+
+    img.title = tooltip;
+  }
+
+  /**
+   * Add simplified badge for swatch-only mode (checkmark or X with "W" indicator)
+   */
+  function addSwatchOnlyBadge(container, matchResult, swatchColor) {
+    // Remove existing badge
+    const existingBadge = container.querySelector('.season-badge');
+    if (existingBadge) {
+      existingBadge.remove();
+    }
+
+    const badge = document.createElement('div');
+    badge.className = 'season-badge swatch-only-badge';
+
+    // Simple checkmark or X
+    if (matchResult.isMatch) {
+      badge.innerHTML = '✓';
+      badge.classList.add('match');
+    } else {
+      badge.innerHTML = '✗';
+      badge.classList.add('no-match');
+    }
+
+    // Add "W" indicator badge to show this came from website swatch
+    badge.title = `Website color (${swatchColor.source})`;
+
+    container.appendChild(badge);
+  }
+
+  /**
+   * Add simplified tooltip for swatch-only mode
+   */
+  function addSwatchOnlyTooltip(img, matchResult, swatchColor) {
+    let tooltip = '';
+
+    if (matchResult.isMatch) {
+      tooltip = `✓ ${swatchColor.hex} matches your ${settings.selectedSeason} palette\n`;
+      tooltip += `Color from website (${swatchColor.source})\n`;
+      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (${matchResult.deltaE < 5 ? 'excellent' : matchResult.deltaE < 10 ? 'good' : 'acceptable'} match)`;
+    } else {
+      tooltip = `✗ ${swatchColor.hex} doesn't match your ${settings.selectedSeason} palette\n`;
+      tooltip += `Color from website (${swatchColor.source})\n`;
+      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (too different)`;
     }
 
     img.title = tooltip;
@@ -1446,6 +1669,22 @@
    * Check if element is a valid color swatch
    */
   function isValidSwatch(el) {
+    // EXCLUDE our own extension elements from swatch detection
+    // This prevents our badges and ColorThief swatches from being treated as website swatches
+    if (
+      el.classList.contains('season-badge') ||
+      el.classList.contains('season-color-swatch') ||
+      el.classList.contains('color-palette-swatch-container') ||
+      el.classList.contains('season-filter-container') ||
+      el.classList.contains('season-overlay') ||
+      el.closest('.season-badge') ||
+      el.closest('.color-palette-swatch-container') ||
+      el.closest('.season-filter-container') ||
+      el.closest('.season-overlay')
+    ) {
+      return false;
+    }
+
     // Must be visible
     if (el.offsetParent === null) return false;
     if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;

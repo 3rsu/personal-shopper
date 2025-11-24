@@ -482,11 +482,36 @@ function extractSwatchColor(swatch) {
     }
   }
 
-  // Method 6: Image swatch (complex, skip for now)
+  // Method 6: Image swatch (use ColorThief for extraction)
   const img = swatch.querySelector('img');
   if (img && img.complete) {
-    // Would need ColorThief analysis - too complex for now
-    // Could be added later if needed
+    try {
+      // Check if we can access image data (CORS check)
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 1, 1);
+      ctx.getImageData(0, 0, 1, 1); // Throws if CORS-blocked
+
+      // CORS OK - extract dominant color
+      if (typeof ColorThief !== 'undefined') {
+        const colorThief = new ColorThief();
+        const dominantColor = colorThief.getColor(img);
+        const hex = rgbToHex(dominantColor);
+
+        if (!isNeutralColor(dominantColor)) {
+          return {
+            hex,
+            rgb: dominantColor,
+            source: 'image-swatch',
+            confidence: 0.75,
+          };
+        }
+      }
+    } catch (e) {
+      // CORS blocked or ColorThief failed - skip this method
+    }
   }
 
   // Method 7: Radio input value (fallback)
