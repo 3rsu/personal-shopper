@@ -377,7 +377,33 @@
         return;
       }
 
-      // For loaded images, check size immediately
+      // Check HTML width/height attributes FIRST (works for lazy-loaded images too)
+      const attrWidth = parseInt(img.getAttribute('width')) || 0;
+      const attrHeight = parseInt(img.getAttribute('height')) || 0;
+
+      if (attrWidth > 0 && attrHeight > 0) {
+        // If HTML attributes indicate small size, skip immediately
+        if (attrWidth < 100 || attrHeight < 100) {
+          return;
+        }
+
+        // Check for small square swatch images by HTML attributes
+        if (attrWidth <= 100 && attrHeight <= 100) {
+          const imgClasses = (img.className || '').toLowerCase();
+          const imgAlt = (img.alt || '').toLowerCase();
+          if (
+            imgClasses.includes('swatch') ||
+            imgClasses.includes('color') ||
+            imgClasses.includes('variant') ||
+            imgAlt.includes('swatch') ||
+            imgAlt.includes('color')
+          ) {
+            return; // Skip website swatch images
+          }
+        }
+      }
+
+      // For loaded images, check actual rendered size
       if (img.complete) {
         // Skip if too small (likely icon, thumbnail, or UI element)
         if (img.naturalWidth < 100 || img.naturalHeight < 100) {
@@ -401,7 +427,7 @@
           }
         }
       }
-      // For unloaded images, include them - size will be checked in processImage()
+      // For unloaded images without size attributes, include them - size will be checked in processImage()
 
       // Skip if completely hidden
       if (img.offsetParent === null && img.style.display === 'none') {
@@ -802,10 +828,34 @@
         });
       }
 
-      // After loading, check if image is too small (icon or thumbnail)
+      // CRITICAL: Check image size BEFORE any processing
+      // This prevents expensive ColorThief analysis on small swatches/icons
       if (img.naturalWidth < 100 || img.naturalHeight < 100) {
         stats.totalImages--; // Don't count this image
+        processedImages.delete(img); // Remove from processed set
+        console.log(
+          `[Season Color Checker] Skipped small image (${img.naturalWidth}x${img.naturalHeight}):`,
+          img.src.substring(0, 100)
+        );
         return;
+      }
+
+      // Additional check: Skip small square images that are likely color swatches
+      if (img.naturalWidth <= 100 && img.naturalHeight <= 100) {
+        const imgClasses = (img.className || '').toLowerCase();
+        const imgAlt = (img.alt || '').toLowerCase();
+        if (
+          imgClasses.includes('swatch') ||
+          imgClasses.includes('color') ||
+          imgClasses.includes('variant') ||
+          imgAlt.includes('swatch') ||
+          imgAlt.includes('color')
+        ) {
+          stats.totalImages--;
+          processedImages.delete(img);
+          console.log('[Season Color Checker] Skipped swatch image:', img.src.substring(0, 100));
+          return;
+        }
       }
 
       // // ========================================
@@ -1269,7 +1319,7 @@
 
     if (matchResult.isMatch) {
       // Green border for matches
-      img.classList.add('season-match');
+      // img.classList.add('season-match');
       container.classList.remove('season-dimmed');
     } else {
       // Dim non-matches

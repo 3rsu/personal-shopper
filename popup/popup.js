@@ -7,12 +7,12 @@
  * - Filter toggle
  */
 
-(function() {
+(function () {
   'use strict';
 
   let currentSettings = {
     selectedSeason: null,
-    filterEnabled: true
+    filterEnabled: true,
   };
 
   let wishlist = [];
@@ -29,34 +29,46 @@
     if (!seasonGrid || !window.SEASONAL_PALETTES) return;
 
     const seasonsOrder = [
-      'bright-spring', 'warm-spring', 'light-spring',
-      'soft-summer', 'cool-summer', 'light-summer',
-      'deep-autumn', 'warm-autumn', 'soft-autumn',
-      'bright-winter', 'cool-winter', 'deep-winter'
+      'bright-spring',
+      'warm-spring',
+      'light-spring',
+      'soft-summer',
+      'cool-summer',
+      'light-summer',
+      'deep-autumn',
+      'warm-autumn',
+      'soft-autumn',
+      'bright-winter',
+      'cool-winter',
+      'deep-winter',
     ];
 
-    seasonGrid.innerHTML = seasonsOrder.map(seasonKey => {
-      const season = window.SEASONAL_PALETTES[seasonKey];
-      if (!season) return '';
+  //   seasonGrid.innerHTML = seasonsOrder
+  //     .map((seasonKey) => {
+  //       const season = window.SEASONAL_PALETTES[seasonKey];
+  //       if (!season) return '';
 
-      const first5Colors = season.colors.slice(0, 5);
+  //       const first5Colors = season.colors.slice(0, 5);
 
-      return `
-        <button class="season-card" data-season="${seasonKey}" tabindex="0" aria-label="${season.name}: ${season.description}">
-          <div class="season-card-header">
-            <span class="season-emoji" aria-hidden="true">${season.emoji}</span>
-            <h3>${season.name}</h3>
-          </div>
-          <p class="season-desc">${season.description}</p>
-          <div class="season-colors" aria-hidden="true">
-            ${first5Colors.map(color =>
-              `<span class="color-dot" style="background: ${color}"></span>`
-            ).join('')}
-          </div>
-        </button>
-      `;
-    }).join('');
-  }
+  //       return `
+  //       <button class="season-card" data-season="${seasonKey}" tabindex="0" aria-label="${
+  //         season.name
+  //       }: ${season.description}">
+  //         <div class="season-card-header">
+  //           <span class="season-emoji" aria-hidden="true">${season.emoji}</span>
+  //           <h3>${season.name}</h3>
+  //         </div>
+  //         <p class="season-desc">${season.description}</p>
+  //         <div class="season-colors" aria-hidden="true">
+  //           ${first5Colors
+  //             .map((color) => `<span class="color-dot" style="background: ${color}"></span>`)
+  //             .join('')}
+  //         </div>
+  //       </button>
+  //     `;
+  //     })
+  //     .join('');
+  // }
 
   /**
    * Initialize popup
@@ -146,7 +158,7 @@
    */
   function setupEventListeners() {
     // Season card clicks and keyboard navigation
-    document.querySelectorAll('.season-card').forEach(card => {
+    document.querySelectorAll('.season-card').forEach((card) => {
       card.addEventListener('click', () => {
         const season = card.dataset.season;
         selectSeason(season);
@@ -249,14 +261,17 @@
 
       // Auto-disable filter when no season is selected
       if (currentSettings.filterEnabled) {
-        chrome.runtime.sendMessage({
-          action: 'toggleFilter',
-          enabled: false
-        }, (response) => {
-          if (response) {
-            currentSettings.filterEnabled = false;
-          }
-        });
+        chrome.runtime.sendMessage(
+          {
+            action: 'toggleFilter',
+            enabled: false,
+          },
+          (response) => {
+            if (response) {
+              currentSettings.filterEnabled = false;
+            }
+          },
+        );
       }
     }
 
@@ -292,7 +307,7 @@
     renderBlockedDomains();
 
     // Highlight selected season
-    document.querySelectorAll('.season-card').forEach(card => {
+    document.querySelectorAll('.season-card').forEach((card) => {
       if (card.dataset.season === currentSettings.selectedSeason) {
         card.classList.add('selected');
       } else {
@@ -305,23 +320,26 @@
    * Select a season
    */
   function selectSeason(season) {
-    chrome.runtime.sendMessage({
-      action: 'setSeason',
-      season: season
-    }, (response) => {
-      if (response && response.success) {
-        currentSettings.selectedSeason = season;
+    chrome.runtime.sendMessage(
+      {
+        action: 'setSeason',
+        season: season,
+      },
+      (response) => {
+        if (response && response.success) {
+          currentSettings.selectedSeason = season;
 
-        // Update UI after season selection
-        updateUI();
+          // Update UI after season selection
+          updateUI();
 
-        // Automatically collapse the grid after selection
-        const seasonGrid = document.querySelector('.season-grid');
-        if (seasonGrid) {
-          seasonGrid.classList.add('collapsed');
+          // Automatically collapse the grid after selection
+          const seasonGrid = document.querySelector('.season-grid');
+          if (seasonGrid) {
+            seasonGrid.classList.add('collapsed');
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   /**
@@ -456,7 +474,7 @@
     let newFavorites;
     if (isFavorite) {
       // Remove from favorites
-      newFavorites = favoriteSites.filter(site => site !== domain);
+      newFavorites = favoriteSites.filter((site) => site !== domain);
     } else {
       // Add to favorites
       newFavorites = [...favoriteSites, domain];
@@ -475,7 +493,6 @@
       chrome.tabs.reload(tab.id);
     }
   }
-
 
   /**
    * Toggle overlay visibility
@@ -556,7 +573,7 @@
 
     // Render list
     listContainer.innerHTML = '';
-    sitesToShow.forEach(site => {
+    sitesToShow.forEach((site) => {
       const item = document.createElement('div');
       item.className = 'favorite-site-item';
       if (site === currentDomain) {
@@ -600,7 +617,7 @@
    */
   async function removeFavoriteSite(domain) {
     const favoriteSites = currentSettings.favoriteSites || [];
-    const newFavorites = favoriteSites.filter(site => site !== domain);
+    const newFavorites = favoriteSites.filter((site) => site !== domain);
 
     // Update storage
     chrome.storage.sync.set({ favoriteSites: newFavorites });
@@ -670,32 +687,43 @@
       if (emptyState) emptyState.style.display = 'none';
       wishlistContainer.style.display = 'grid';
 
-      wishlistContainer.innerHTML = wishlist.map(item => `
+      wishlistContainer.innerHTML = wishlist
+        .map(
+          (item) => `
         <div class="wishlist-item" data-id="${item.id}" role="listitem">
           <div class="wishlist-item-image">
-            <img src="${item.imageUrl}" alt="Wishlist item ${item.matchScore}% match" loading="lazy">
-            <button class="wishlist-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove from wishlist">
+            <img src="${item.imageUrl}" alt="Wishlist item ${
+            item.matchScore
+          }% match" loading="lazy">
+            <button class="wishlist-item-remove" data-id="${
+              item.id
+            }" title="Remove" aria-label="Remove from wishlist">
               ×
             </button>
           </div>
           <div class="wishlist-item-info">
             <div class="wishlist-item-colors" aria-hidden="true">
-              ${(item.dominantColors || []).slice(0, 3).map(color =>
-                `<span class="color-dot" style="background: ${color}"></span>`
-              ).join('')}
+              ${(item.dominantColors || [])
+                .slice(0, 3)
+                .map((color) => `<span class="color-dot" style="background: ${color}"></span>`)
+                .join('')}
             </div>
             <div class="wishlist-item-score">
               ${item.matchScore}% match
             </div>
-            <a href="${item.pageUrl}" class="wishlist-item-link" target="_blank" rel="noopener noreferrer" aria-label="View product on store website">
+            <a href="${
+              item.pageUrl
+            }" class="wishlist-item-link" target="_blank" rel="noopener noreferrer" aria-label="View product on store website">
               View Product →
             </a>
           </div>
         </div>
-      `).join('');
+      `,
+        )
+        .join('');
 
       // Add remove button listeners
-      wishlistContainer.querySelectorAll('.wishlist-item-remove').forEach(btn => {
+      wishlistContainer.querySelectorAll('.wishlist-item-remove').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const itemId = parseInt(btn.dataset.id);
@@ -709,15 +737,18 @@
    * Remove item from wishlist
    */
   function removeFromWishlist(itemId) {
-    chrome.runtime.sendMessage({
-      action: 'removeFromWishlist',
-      itemId: itemId
-    }, (response) => {
-      if (response && response.success) {
-        wishlist = wishlist.filter(item => item.id !== itemId);
-        renderWishlist();
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'removeFromWishlist',
+        itemId: itemId,
+      },
+      (response) => {
+        if (response && response.success) {
+          wishlist = wishlist.filter((item) => item.id !== itemId);
+          renderWishlist();
+        }
+      },
+    );
   }
 
   /**
@@ -728,49 +759,62 @@
       return;
     }
 
-    chrome.runtime.sendMessage({
-      action: 'clearWishlist'
-    }, (response) => {
-      if (response && response.success) {
-        wishlist = [];
-        renderWishlist();
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'clearWishlist',
+      },
+      (response) => {
+        if (response && response.success) {
+          wishlist = [];
+          renderWishlist();
+        }
+      },
+    );
   }
 
   /**
    * Clear all blocked domains
    */
   function clearBlockedDomains() {
-    if (!confirm('Unblock all domains? This will allow the extension to try analyzing images from these domains again.')) {
+    if (
+      !confirm(
+        'Unblock all domains? This will allow the extension to try analyzing images from these domains again.',
+      )
+    ) {
       return;
     }
 
-    chrome.runtime.sendMessage({
-      action: 'clearBlockedDomains'
-    }, (response) => {
-      if (response && response.success) {
-        blockedDomains = [];
-        domainStats = {};
-        renderBlockedDomains();
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'clearBlockedDomains',
+      },
+      (response) => {
+        if (response && response.success) {
+          blockedDomains = [];
+          domainStats = {};
+          renderBlockedDomains();
+        }
+      },
+    );
   }
 
   /**
    * Unblock a single domain
    */
   function unblockDomain(domain) {
-    chrome.runtime.sendMessage({
-      action: 'unblockDomain',
-      domain: domain
-    }, async (response) => {
-      if (response && response.success) {
-        // Reload domain stats
-        await loadDomainStats();
-        renderBlockedDomains();
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'unblockDomain',
+        domain: domain,
+      },
+      async (response) => {
+        if (response && response.success) {
+          // Reload domain stats
+          await loadDomainStats();
+          renderBlockedDomains();
+        }
+      },
+    );
   }
 
   /**
@@ -791,11 +835,12 @@
     section.style.display = 'block';
 
     // Render each blocked domain with statistics
-    list.innerHTML = blockedDomains.map(domain => {
-      const stats = domainStats[domain] || { corsBlocked: 0 };
-      const corsBlocked = stats.corsBlocked || 0;
+    list.innerHTML = blockedDomains
+      .map((domain) => {
+        const stats = domainStats[domain] || { corsBlocked: 0 };
+        const corsBlocked = stats.corsBlocked || 0;
 
-      return `
+        return `
         <div class="blocked-domain-item" role="listitem">
           <div class="blocked-domain-info">
             <div class="blocked-domain-name">${domain}</div>
@@ -812,10 +857,11 @@
           </button>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Add event listeners to unblock buttons
-    list.querySelectorAll('.unblock-domain-btn').forEach(btn => {
+    list.querySelectorAll('.unblock-domain-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const domain = btn.dataset.domain;
         unblockDomain(domain);
@@ -843,23 +889,27 @@
       }
 
       // Send message directly to content script
-      chrome.tabs.sendMessage(tab.id, {
-        action: 'activateEyedropper',
-        season: currentSettings.selectedSeason
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Failed to send message:', chrome.runtime.lastError);
-          alert('Failed to activate eyedropper. Please refresh the page and try again.');
-          return;
-        }
+      chrome.tabs.sendMessage(
+        tab.id,
+        {
+          action: 'activateEyedropper',
+          season: currentSettings.selectedSeason,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to send message:', chrome.runtime.lastError);
+            alert('Failed to activate eyedropper. Please refresh the page and try again.');
+            return;
+          }
 
-        if (response && response.success) {
-          // Close popup to allow user to interact with page
-          window.close();
-        } else {
-          alert('Failed to activate eyedropper');
-        }
-      });
+          if (response && response.success) {
+            // Close popup to allow user to interact with page
+            window.close();
+          } else {
+            alert('Failed to activate eyedropper');
+          }
+        },
+      );
     } catch (error) {
       console.error('Error activating eyedropper:', error);
       alert('Failed to activate eyedropper');
@@ -887,12 +937,13 @@
     const displayLimit = showAllHistory ? colorHistory.length : 3;
     const recentColors = colorHistory.slice(0, displayLimit);
 
-    historyContainer.innerHTML = recentColors.map(color => {
-      const matchClass = color.match ? 'match' : 'no-match';
-      const matchIcon = color.match ? '✓' : '✗';
-      const matchText = color.match ? 'Matches' : 'No match';
+    historyContainer.innerHTML = recentColors
+      .map((color) => {
+        const matchClass = color.match ? 'match' : 'no-match';
+        const matchIcon = color.match ? '✓' : '✗';
+        const matchText = color.match ? 'Matches' : 'No match';
 
-      return `
+        return `
         <div class="history-item ${matchClass}" role="listitem">
           <div class="history-color-info">
             <div class="history-swatch" style="background: ${color.hex};" aria-hidden="true"></div>
@@ -907,7 +958,8 @@
           <div class="history-distance" aria-label="Color distance: ${color.distance}">ΔE ${color.distance}</div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Show/hide "Show All" button
     if (showAllBtn) {
@@ -936,14 +988,17 @@
       return;
     }
 
-    chrome.runtime.sendMessage({
-      action: 'clearColorHistory'
-    }, (response) => {
-      if (response && response.success) {
-        colorHistory = [];
-        renderColorHistory();
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'clearColorHistory',
+      },
+      (response) => {
+        if (response && response.success) {
+          colorHistory = [];
+          renderColorHistory();
+        }
+      },
+    );
   }
 
   /**
@@ -994,5 +1049,4 @@
   } else {
     initialize();
   }
-
 })();
