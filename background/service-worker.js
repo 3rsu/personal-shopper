@@ -187,7 +187,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({
       selectedSeason: storageCache.selectedSeason,
       filterEnabled: storageCache.filterEnabled,
-      favoriteSites: storageCache.favoriteSites
+      favoriteSites: storageCache.favoriteSites,
+      showOverlay: storageCache.showOverlay,
+      showSwatches: storageCache.showSwatches
     });
     return true;
   }

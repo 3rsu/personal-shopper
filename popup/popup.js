@@ -43,32 +43,32 @@
       'deep-winter',
     ];
 
-  //   seasonGrid.innerHTML = seasonsOrder
-  //     .map((seasonKey) => {
-  //       const season = window.SEASONAL_PALETTES[seasonKey];
-  //       if (!season) return '';
+  seasonGrid.innerHTML = seasonsOrder
+    .map((seasonKey) => {
+      const season = window.SEASONAL_PALETTES[seasonKey];
+      if (!season) return '';
 
-  //       const first5Colors = season.colors.slice(0, 5);
+      const first5Colors = season.colors.slice(0, 5);
 
-  //       return `
-  //       <button class="season-card" data-season="${seasonKey}" tabindex="0" aria-label="${
-  //         season.name
-  //       }: ${season.description}">
-  //         <div class="season-card-header">
-  //           <span class="season-emoji" aria-hidden="true">${season.emoji}</span>
-  //           <h3>${season.name}</h3>
-  //         </div>
-  //         <p class="season-desc">${season.description}</p>
-  //         <div class="season-colors" aria-hidden="true">
-  //           ${first5Colors
-  //             .map((color) => `<span class="color-dot" style="background: ${color}"></span>`)
-  //             .join('')}
-  //         </div>
-  //       </button>
-  //     `;
-  //     })
-  //     .join('');
-  // }
+      return `
+      <button class="season-card" data-season="${seasonKey}" tabindex="0" aria-label="${
+        season.name
+      }: ${season.description}">
+        <div class="season-card-header">
+          <span class="season-emoji" aria-hidden="true">${season.emoji}</span>
+          <h3>${season.name}</h3>
+        </div>
+        <p class="season-desc">${season.description}</p>
+        <div class="season-colors" aria-hidden="true">
+          ${first5Colors
+            .map((color) => `<span class="color-dot" style="background: ${color}"></span>`)
+            .join('')}
+        </div>
+      </button>
+    `;
+    })
+    .join('');
+}
 
   /**
    * Initialize popup
@@ -425,12 +425,29 @@
    * Update domain info display and favorite button state
    */
   async function updateDomainInfo() {
-    const domain = await getCurrentDomain();
     const statusEl = document.getElementById('domain-status');
     const favoriteBtn = document.getElementById('favorite-btn');
     const heartIcon = favoriteBtn?.querySelector('.heart-icon');
 
-    if (!domain || !statusEl) return;
+    let domain;
+    try {
+      domain = await getCurrentDomain();
+    } catch (error) {
+      console.error('Failed to get current domain:', error);
+      if (statusEl) {
+        statusEl.textContent = 'Unable to detect current site';
+        statusEl.className = 'domain-status inactive';
+      }
+      return;
+    }
+
+    if (!domain || !statusEl) {
+      if (statusEl && !domain) {
+        statusEl.textContent = 'No active tab detected';
+        statusEl.className = 'domain-status inactive';
+      }
+      return;
+    }
 
     // Check if domain is in favorites
     const isFavorite = currentSettings.favoriteSites?.includes(domain);
