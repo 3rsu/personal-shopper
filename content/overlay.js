@@ -11,11 +11,8 @@
   'use strict';
 
   let overlayElement = null;
-  let highlightEnabled = true;
   let lastPickedColor = null;
   let currentSettings = null;
-  let showAllColors = false;
-  let colorHistory = [];
 
   /**
    * Initialize the overlay widget
@@ -36,9 +33,9 @@
     // Load last picked color from storage
     loadLastPickedColor();
 
-    // Set initial visibility based on filterEnabled setting
-    if (settings.filterEnabled === false) {
-      hideOverlay();
+    // Set initial visibility based on showOverlay setting
+    if (settings.showOverlay === false) {
+      overlayElement.style.display = 'none';
     }
   };
 
@@ -60,11 +57,8 @@
             <strong class="match-count">0</strong> of
             <strong class="total-count">0</strong> match
           </span>
-          <span class="swatch-stats" style="display: none; margin-top: 4px; font-size: 12px; color: #6b7280;">
-            <strong class="swatch-match-count">0</strong>/<strong class="swatch-total-count">0</strong> colors
-          </span>
         </div>
-        <button class="season-overlay-close" title="Close">×</button>
+        <button class="season-overlay-close" title="Hide">×</button>
       </div>
       <div class="season-overlay-content">
         <button class="btn-eyedropper">
@@ -81,28 +75,12 @@
             </div>
           </div>
         </div>
-
-        <button class="btn-show-all" style="display: none;">Show All</button>
-
-        <div class="color-history-expanded" style="display: none;">
-          <div class="color-history-list"></div>
-        </div>
-
-        <div class="highlight-toggle-container">
-          <label class="toggle-label">
-            <input type="checkbox" class="highlight-toggle" checked>
-            <span class="toggle-switch"></span>
-            <span class="toggle-text">Highlight products</span>
-          </label>
-        </div>
       </div>
     `;
 
     // Event listeners
     overlay.querySelector('.season-overlay-close').addEventListener('click', hideOverlay);
     overlay.querySelector('.btn-eyedropper').addEventListener('click', activateEyedropper);
-    overlay.querySelector('.highlight-toggle').addEventListener('change', toggleHighlights);
-    overlay.querySelector('.btn-show-all').addEventListener('click', toggleShowAll);
 
     return overlay;
   }
@@ -120,19 +98,6 @@
 
     if (matchCount) matchCount.textContent = stats.matchingImages || 0;
     if (totalCount) totalCount.textContent = stats.totalImages || 0;
-
-    // Update swatch stats if available
-    const swatchStats = overlayElement.querySelector('.swatch-stats');
-    const swatchMatchCount = overlayElement.querySelector('.swatch-match-count');
-    const swatchTotalCount = overlayElement.querySelector('.swatch-total-count');
-
-    if (stats.totalSwatches > 0 && swatchStats && swatchMatchCount && swatchTotalCount) {
-      swatchMatchCount.textContent = stats.matchingSwatches || 0;
-      swatchTotalCount.textContent = stats.totalSwatches || 0;
-      swatchStats.style.display = 'block';
-    } else if (swatchStats) {
-      swatchStats.style.display = 'none';
-    }
   };
 
   /**
@@ -141,18 +106,11 @@
   function loadLastPickedColor() {
     chrome.storage.local.get(['colorHistory'], (result) => {
       if (result.colorHistory && result.colorHistory.length > 0) {
-        colorHistory = result.colorHistory;
         lastPickedColor = result.colorHistory[0];
         updateLastColorDisplay();
-        if (showAllColors) {
-          renderColorHistoryList();
-        }
       } else {
-        colorHistory = [];
         lastPickedColor = null;
       }
-      // Always update button visibility based on current color history
-      updateShowAllButton();
     });
   }
 
@@ -179,81 +137,6 @@
     }
   }
 
-  /**
-   * Update Show All button visibility
-   */
-  function updateShowAllButton() {
-    if (!overlayElement) return;
-
-    const showAllBtn = overlayElement.querySelector('.btn-show-all');
-    if (!showAllBtn) return;
-
-    if (colorHistory.length > 0) {
-      showAllBtn.style.display = 'block';
-      showAllBtn.textContent = showAllColors ? 'Show Less' : 'Show All';
-    } else {
-      showAllBtn.style.display = 'none';
-    }
-  }
-
-  /**
-   * Toggle show all colors
-   */
-  function toggleShowAll() {
-    showAllColors = !showAllColors;
-
-    if (!overlayElement) return;
-
-    const expandedContainer = overlayElement.querySelector('.color-history-expanded');
-    const lastColorDisplay = overlayElement.querySelector('.last-color-display');
-    const showAllBtn = overlayElement.querySelector('.btn-show-all');
-
-    if (showAllColors) {
-      // Show expanded list, hide single display
-      if (lastColorDisplay) lastColorDisplay.style.display = 'none';
-      if (expandedContainer) expandedContainer.style.display = 'block';
-      if (showAllBtn) showAllBtn.textContent = 'Show Less';
-      renderColorHistoryList();
-    } else {
-      // Show single display, hide expanded list
-      if (expandedContainer) expandedContainer.style.display = 'none';
-      if (lastColorDisplay) lastColorDisplay.style.display = 'block';
-      if (showAllBtn) showAllBtn.textContent = 'Show All';
-    }
-  }
-
-  /**
-   * Render color history list (multiple colors)
-   */
-  function renderColorHistoryList() {
-    if (!overlayElement || colorHistory.length === 0) return;
-
-    const listContainer = overlayElement.querySelector('.color-history-list');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = '';
-
-    // Show up to 10 colors
-    const colorsToShow = colorHistory.slice(0, 10);
-
-    colorsToShow.forEach((color) => {
-      const item = document.createElement('div');
-      item.className = 'history-item';
-
-      const matchText = color.match ? `✓ ΔE ${color.distance}` : `✗ ΔE ${color.distance}`;
-      const matchClass = color.match ? 'match' : 'no-match';
-
-      item.innerHTML = `
-        <div class="history-swatch" style="background: ${color.hex};"></div>
-        <div class="history-info">
-          <div class="history-hex">${color.hex}</div>
-          <div class="history-match ${matchClass}">${matchText}</div>
-        </div>
-      `;
-
-      listContainer.appendChild(item);
-    });
-  }
 
   /**
    * Hide overlay
@@ -264,7 +147,7 @@
     }
 
     // Update storage - all listeners will sync automatically
-    chrome.storage.sync.set({ filterEnabled: false });
+    chrome.storage.sync.set({ showOverlay: false });
   }
 
   /**
@@ -296,27 +179,6 @@
     setTimeout(loadLastPickedColor, 1000);
   }
 
-  /**
-   * Toggle highlights on/off
-   */
-  function toggleHighlights(e) {
-    highlightEnabled = e.target.checked;
-
-    // Send message to content script to toggle highlights
-    chrome.runtime.sendMessage({
-      action: 'toggleHighlights',
-      enabled: highlightEnabled
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Failed to toggle highlights:', chrome.runtime.lastError);
-      }
-    });
-
-    // Also dispatch custom event for content.js to listen to
-    document.dispatchEvent(new CustomEvent('seasonFilterToggleHighlights', {
-      detail: { enabled: highlightEnabled }
-    }));
-  }
 
   /**
    * Make overlay draggable
@@ -369,29 +231,19 @@
       loadLastPickedColor();
     }
 
+    // Listen for overlay visibility changes
+    if (areaName === 'sync' && changes.showOverlay) {
+      const showOverlay = changes.showOverlay.newValue;
+
+      // Update overlay visibility
+      if (overlayElement) {
+        overlayElement.style.display = showOverlay ? 'block' : 'none';
+      }
+    }
+
     // Listen for filter enabled state changes
     if (areaName === 'sync' && changes.filterEnabled) {
       const enabled = changes.filterEnabled.newValue;
-
-      // Update overlay visibility
-      if (enabled) {
-        if (overlayElement) {
-          overlayElement.style.display = 'block';
-        }
-      } else {
-        if (overlayElement) {
-          overlayElement.style.display = 'none';
-        }
-      }
-
-      // Update the internal highlight toggle to stay in sync
-      if (overlayElement) {
-        const toggle = overlayElement.querySelector('.highlight-toggle');
-        if (toggle) {
-          toggle.checked = enabled;
-          highlightEnabled = enabled;
-        }
-      }
 
       // Dispatch custom event for content.js to handle highlighting
       document.dispatchEvent(new CustomEvent('seasonFilterToggleHighlights', {

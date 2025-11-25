@@ -50,6 +50,95 @@ body {
   flex-shrink: 0;
 }
 
+/* Header Controls */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-btn {
+  background: rgba(210, 199, 191, 0.1);
+  border: 2px solid #d2c7bf;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 28px;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+  background: rgba(210, 199, 191, 0.15);
+  border-color: #a9d4c0;
+}
+
+.favorite-btn:active {
+  transform: scale(0.98);
+}
+
+.favorite-btn .heart-icon {
+  color: #9a9a9a;
+  transition: color 0.2s ease;
+}
+
+.favorite-btn.favorited {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
+.favorite-btn.favorited .heart-icon {
+  color: #ef4444;
+}
+
+.favorite-btn.favorited:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+/* Domain Info */
+.domain-info {
+  padding: 10px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.domain-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.domain-status.active {
+  color: #5b7a68;
+}
+
+.domain-status.active::before {
+  content: '✓';
+  color: #a9d4c0;
+  font-weight: bold;
+}
+
+.domain-status.inactive {
+  color: #9a9a9a;
+}
+
+.domain-status.inactive::before {
+  content: '○';
+  color: #d2c7bf;
+}
+
 /* Content */
 .content {
   padding: 12px;
@@ -543,6 +632,37 @@ input:checked + .toggle-slider:before {
   opacity: 1;
   transform: translateY(0);
   transition-delay: 0.3s;
+}
+
+/* Display Options */
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.option-item input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.option-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.option-description {
+  font-size: 12px;
+  color: #1f2937;
+  margin-left: 24px;
+  line-height: 1.4;
 }
 
 /* Footer */

@@ -168,11 +168,25 @@
       changeSeasonBtn.addEventListener('click', toggleSeasonSelection);
     }
 
-    // Filter toggle
-    const filterToggle = document.getElementById('filter-toggle');
-    if (filterToggle) {
-      filterToggle.addEventListener('change', (e) => {
-        toggleFilter(e.target.checked);
+    // Favorite button (heart icon) - controls extension activation
+    const favoriteBtn = document.getElementById('favorite-btn');
+    if (favoriteBtn) {
+      favoriteBtn.addEventListener('click', toggleFavorite);
+    }
+
+    // Show overlay toggle
+    const showOverlayToggle = document.getElementById('show-overlay-toggle');
+    if (showOverlayToggle) {
+      showOverlayToggle.addEventListener('change', (e) => {
+        toggleOverlay(e.target.checked);
+      });
+    }
+
+    // Show swatches toggle (debug mode)
+    const showSwatchesToggle = document.getElementById('show-swatches-toggle');
+    if (showSwatchesToggle) {
+      showSwatchesToggle.addEventListener('change', (e) => {
+        toggleSwatches(e.target.checked);
       });
     }
 
@@ -230,10 +244,19 @@
       }
     }
 
-    // Update filter toggle
-    const filterToggle = document.getElementById('filter-toggle');
-    if (filterToggle) {
-      filterToggle.checked = currentSettings.filterEnabled;
+    // Update domain info and favorite button
+    updateDomainInfo();
+
+    // Update show overlay toggle
+    const showOverlayToggle = document.getElementById('show-overlay-toggle');
+    if (showOverlayToggle) {
+      showOverlayToggle.checked = currentSettings.showOverlay !== false;
+    }
+
+    // Update show swatches toggle
+    const showSwatchesToggle = document.getElementById('show-swatches-toggle');
+    if (showSwatchesToggle) {
+      showSwatchesToggle.checked = currentSettings.showSwatches || false;
     }
 
     // Update wishlist display
@@ -266,21 +289,8 @@
       if (response && response.success) {
         currentSettings.selectedSeason = season;
 
-        // Automatically enable filter when a season is selected
-        chrome.runtime.sendMessage({
-          action: 'toggleFilter',
-          enabled: true
-        }, (filterResponse) => {
-          if (filterResponse) {
-            currentSettings.filterEnabled = true;
-            // Update the filter toggle checkbox
-            const filterToggle = document.getElementById('filter-toggle');
-            if (filterToggle) {
-              filterToggle.checked = true;
-            }
-          }
-          updateUI();
-        });
+        // Update UI after season selection
+        updateUI();
 
         // Automatically collapse the grid after selection
         const seasonGrid = document.querySelector('.season-grid');
@@ -356,12 +366,110 @@
   }
 
   /**
-   * Toggle filter on/off
+   * Get current tab domain
    */
-  function toggleFilter(enabled) {
-    // Update storage - all listeners will sync automatically
-    chrome.storage.sync.set({ filterEnabled: enabled });
-    currentSettings.filterEnabled = enabled;
+  async function getCurrentDomain() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) return null;
+      const url = new URL(tab.url);
+      return url.hostname.replace(/^www\./, '');
+    } catch (error) {
+      console.error('Failed to get current domain:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update domain info display and favorite button state
+   */
+  async function updateDomainInfo() {
+    const domain = await getCurrentDomain();
+    const statusEl = document.getElementById('domain-status');
+    const favoriteBtn = document.getElementById('favorite-btn');
+    const heartIcon = favoriteBtn?.querySelector('.heart-icon');
+
+    if (!domain || !statusEl) return;
+
+    // Check if domain is in favorites
+    const isFavorite = currentSettings.favoriteSites?.includes(domain);
+
+    // Update status display
+    if (isFavorite) {
+      statusEl.textContent = `Active on ${domain}`;
+      statusEl.className = 'domain-status active';
+    } else {
+      statusEl.textContent = `Click ♡ to activate on ${domain}`;
+      statusEl.className = 'domain-status inactive';
+    }
+
+    // Update heart icon
+    if (heartIcon) {
+      heartIcon.textContent = isFavorite ? '❤️' : '♡';
+    }
+
+    // Update button class and tooltip
+    if (favoriteBtn) {
+      if (isFavorite) {
+        favoriteBtn.classList.add('favorited');
+        favoriteBtn.title = 'Deactivate extension on this site';
+      } else {
+        favoriteBtn.classList.remove('favorited');
+        favoriteBtn.title = 'Activate extension on this site';
+      }
+    }
+  }
+
+  /**
+   * Toggle current domain in favorites
+   */
+  async function toggleFavorite() {
+    const domain = await getCurrentDomain();
+    if (!domain) return;
+
+    const favoriteSites = currentSettings.favoriteSites || [];
+    const isFavorite = favoriteSites.includes(domain);
+
+    let newFavorites;
+    if (isFavorite) {
+      // Remove from favorites
+      newFavorites = favoriteSites.filter(site => site !== domain);
+    } else {
+      // Add to favorites
+      newFavorites = [...favoriteSites, domain];
+    }
+
+    // Update storage
+    chrome.storage.sync.set({ favoriteSites: newFavorites });
+    currentSettings.favoriteSites = newFavorites;
+
+    // Update UI
+    updateDomainInfo();
+
+    // Reload current tab to apply changes
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      chrome.tabs.reload(tab.id);
+    }
+  }
+
+
+  /**
+   * Toggle overlay visibility
+   */
+  function toggleOverlay(enabled) {
+    // Update storage - content script will show/hide overlay
+    chrome.storage.sync.set({ showOverlay: enabled });
+    currentSettings.showOverlay = enabled;
+  }
+
+  /**
+   * Toggle swatches display (debug mode)
+   */
+  function toggleSwatches(enabled) {
+    // Update storage - content script will toggle body class
+    chrome.storage.sync.set({ showSwatches: enabled });
+    currentSettings.showSwatches = enabled;
   }
 
   /**
@@ -673,11 +781,18 @@
 
   // Listen for storage changes to keep UI in sync
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.filterEnabled) {
-      currentSettings.filterEnabled = changes.filterEnabled.newValue;
-      const filterToggle = document.getElementById('filter-toggle');
-      if (filterToggle) {
-        filterToggle.checked = changes.filterEnabled.newValue;
+    if (area === 'sync') {
+      if (changes.favoriteSites) {
+        currentSettings.favoriteSites = changes.favoriteSites.newValue;
+        updateDomainInfo();
+      }
+
+      if (changes.showOverlay) {
+        currentSettings.showOverlay = changes.showOverlay.newValue;
+        const showOverlayToggle = document.getElementById('show-overlay-toggle');
+        if (showOverlayToggle) {
+          showOverlayToggle.checked = changes.showOverlay.newValue;
+        }
       }
     }
   });

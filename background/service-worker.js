@@ -15,10 +15,19 @@
 let storageCache = {
   selectedSeason: null,
   filterEnabled: true,
+  favoriteSites: [], // User's favorite shopping sites (auto-enable)
+  showOverlay: true,
+  showSwatches: false, // Hidden by default
   wishlist: [],
   colorHistory: [],
   domainStats: {},
-  blockedDomains: []
+  blockedDomains: [],
+
+  // Trial & payment
+  trialStartDate: null,
+  isPaid: false,
+  paidUntil: null,
+  showedWelcome: false
 };
 
 /**
@@ -29,17 +38,45 @@ chrome.runtime.onInstalled.addListener((details) => {
     // First-time install: set defaults
     chrome.storage.sync.set({
       selectedSeason: null,  // User must choose
-      filterEnabled: false  // Off until user selects a season
+      filterEnabled: true,  // Master enable toggle
+
+      // Pre-seed 20 popular shopping sites
+      favoriteSites: [
+        // Department stores
+        'nordstrom.com', 'macys.com', 'bloomingdales.com',
+        'saksfifthavenue.com', 'neimanmarcus.com',
+
+        // Fast fashion
+        'zara.com', 'hm.com', 'asos.com', 'gap.com', 'uniqlo.com',
+
+        // Online retailers
+        'shopbop.com', 'revolve.com', 'net-a-porter.com',
+        'farfetch.com', 'ssense.com',
+
+        // Affordable/popular
+        'target.com', 'oldnavy.com', 'jcrew.com',
+        'madewell.com', 'anthropologie.com'
+      ],
+
+      showOverlay: true,
+      showSwatches: false, // Hidden by default (70% accuracy)
+
+      // Trial & payment
+      trialStartDate: new Date().toISOString(),
+      isPaid: false,
+      paidUntil: null,
+      showedWelcome: false
     });
 
     chrome.storage.local.set({
       wishlist: [],
       domainStats: {},
-      blockedDomains: []
+      blockedDomains: [],
+      colorHistory: []
     });
 
-    // Note: Removed tab creation as popup.html is designed to run as a popup, not a full page
-    // User will click the extension icon to open the popup
+    // Open welcome page for onboarding
+    chrome.tabs.create({ url: 'popup/welcome.html' });
   } else if (details.reason === 'update') {
     // Extension updated
     console.log('Season Color Checker updated to version', chrome.runtime.getManifest().version);

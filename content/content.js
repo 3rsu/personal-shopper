@@ -36,6 +36,14 @@
   let hasShownSummary = false;
 
   /**
+   * Get current domain
+   */
+  function getCurrentDomain() {
+    const hostname = window.location.hostname;
+    return hostname.replace(/^www\./, '');
+  }
+
+  /**
    * Initialize the extension
    */
   async function initialize() {
@@ -56,8 +64,21 @@
         settings = response;
         console.log('[Season Color Checker] Settings loaded:', settings);
 
+        // Check if extension should activate on this domain
+        const currentDomain = getCurrentDomain();
+        const favoriteSites = settings.favoriteSites || [];
+        const isFavorite = favoriteSites.some(site =>
+          currentDomain.includes(site) || site.includes(currentDomain)
+        );
+
+        // Only activate if domain is in favorites
+        if (!isFavorite) {
+          console.log('[Season Color Checker] Not active on this site:', currentDomain);
+          return; // Exit early
+        }
+
         // Only run if user has selected a season
-        if (settings.selectedSeason && settings.filterEnabled) {
+        if (settings.selectedSeason) {
           // Check if the selected season exists in the palette
           if (SEASONAL_PALETTES[settings.selectedSeason]) {
             console.log(
@@ -114,14 +135,21 @@
           resetAndRefilter();
         }
 
-        if (changes.filterEnabled) {
-          settings.filterEnabled = changes.filterEnabled.newValue;
-          if (changes.filterEnabled.newValue) {
-            resetAndRefilter();
+        if (changes.favoriteSites) {
+          // Favorites changed - popup.js reloads the page when toggling favorites
+          settings.favoriteSites = changes.favoriteSites.newValue;
+        }
+
+        if (changes.showSwatches) {
+          // Toggle body class to show/hide swatches
+          if (changes.showSwatches.newValue) {
+            document.body.classList.add('show-swatches');
           } else {
-            removeAllFilters();
+            document.body.classList.remove('show-swatches');
           }
         }
+
+        // Note: showOverlay changes are handled by overlay.js storage listener
       }
     });
   }

@@ -5,6 +5,22 @@
  * Injected into all web pages where the extension runs.
  */
 
+/* Hide swatches by default (70% accuracy - opt-in only) */
+body:not(.show-swatches) .color-palette-swatch-container {
+  display: none !important;
+}
+
+/* Hide highlights when disabled */
+body.highlights-hidden .season-match-border,
+body.highlights-hidden .season-no-match-border {
+  border: none !important;
+}
+
+/* Extension inactive state */
+body.extension-inactive .season-filter-container {
+  all: unset !important;
+}
+
 /* Filter Container */
 .season-filter-container {
   position: relative;

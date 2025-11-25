@@ -13,14 +13,16 @@
         <img src="../icons/blob.png" alt="" class="icon" />
         Shop your Color
       </h1>
-      <label
-        class="toggle-switch"
-        data-tooltip="Show on page"
-        aria-label="Toggle product highlighting"
-      >
-        <input type="checkbox" id="filter-toggle" checked />
-        <span class="toggle-slider"></span>
-      </label>
+      <div class="header-controls">
+        <button class="favorite-btn" id="favorite-btn" title="Activate extension on this site" aria-label="Activate extension on this site">
+          <span class="heart-icon">♡</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Domain Info -->
+    <div class="domain-info">
+      <span class="domain-status" id="domain-status">Loading...</span>
     </div>
 
     <!-- Main Content -->
@@ -45,6 +47,31 @@
           <button class="btn-change" id="change-season" aria-label="Change season selection">
             Edit
           </button>
+        </div>
+      </section>
+
+      <!-- Display Options Section -->
+      <section class="section section-divider" id="display-options-section">
+        <div class="section-header">
+          <h2 class="section-title">Display Options</h2>
+        </div>
+
+        <div class="option-list">
+          <label class="option-item">
+            <input type="checkbox" id="show-overlay-toggle" checked />
+            <span class="option-label">Show overlay widget</span>
+            <p class="option-description">
+              Display the floating stats widget on the page.
+            </p>
+          </label>
+
+          <label class="option-item">
+            <input type="checkbox" id="show-swatches-toggle" />
+            <span class="option-label">Show color swatches (debug mode)</span>
+            <p class="option-description">
+              Display detected colors. Note: Color detection is ~70% accurate.
+            </p>
+          </label>
         </div>
       </section>
 
