@@ -190,19 +190,25 @@
   function startFiltering() {
     console.log('[Season Color Checker] Starting filtering process...');
 
-    // Find and process product images
-    findAndProcessImages();
-
-    // Set up observer for dynamically loaded content (infinite scroll, etc.)
-    observeNewImages();
-
-    // Initialize overlay widget
+    // Initialize overlay widget first
     if (typeof window.initializeOverlay === 'function') {
       window.initializeOverlay(stats, settings);
       console.log('[Season Color Checker] Overlay widget initialized');
     } else {
       console.warn('[Season Color Checker] Overlay not available');
     }
+
+    // Show loading state immediately
+    if (typeof window.showLoadingState === 'function') {
+      window.showLoadingState();
+      console.log('[Season Color Checker] Loading state shown');
+    }
+
+    // Find and process product images
+    findAndProcessImages();
+
+    // Set up observer for dynamically loaded content (infinite scroll, etc.)
+    observeNewImages();
 
     // Set up inactivity detection for color swatches
     setupInactivityDetection();
@@ -228,16 +234,34 @@
   /**
    * Find product images on the page
    */
-  function findAndProcessImages() {
+  async function findAndProcessImages() {
     const images = findProductImages();
     const pageType = detectPageType(images);
+    const totalToProcess = images.filter(img => !processedImages.has(img)).length;
+    let processedCount = 0;
 
-    images.forEach((img) => {
+    // Process all images
+    const processingPromises = images.map(async (img) => {
       if (!processedImages.has(img)) {
-        processImage(img, pageType);
+        await processImage(img, pageType);
+        processedCount++;
+
+        // Update loading progress every 5 images or on last image
+        if (processedCount % 5 === 0 || processedCount === totalToProcess) {
+          if (typeof window.updateLoadingProgress === 'function') {
+            window.updateLoadingProgress(processedCount, totalToProcess);
+          }
+        }
       }
     });
 
+    // Wait for all images to be processed
+    await Promise.all(processingPromises);
+
+    // Hide loading state and show final stats
+    if (typeof window.hideLoadingState === 'function') {
+      window.hideLoadingState();
+    }
     updateOverlay();
   }
 

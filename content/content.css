@@ -207,11 +207,40 @@ img.season-no-match:hover {
 .stat-text {
   font-size: 13px;
   color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .stat-text strong {
   color: #1f2937;
   font-weight: 600;
+}
+
+/* Loading spinner */
+.season-loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #2e2a27;
+  border-radius: 50%;
+  animation: season-spinner-rotate 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-text {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+@keyframes season-spinner-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .season-overlay-close {

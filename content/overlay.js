@@ -101,6 +101,58 @@
   };
 
   /**
+   * Show loading state in overlay
+   */
+  window.showLoadingState = function () {
+    if (!overlayElement) return;
+
+    // Add loading spinner to stat line
+    const statLine = overlayElement.querySelector('.stat-line');
+    if (statLine) {
+      statLine.innerHTML = `
+        <span class="stat-text">
+          <span class="season-loading-spinner"></span>
+          <span class="loading-text">Analyzing...</span>
+        </span>
+      `;
+    }
+  };
+
+  /**
+   * Update loading progress in overlay
+   */
+  window.updateLoadingProgress = function (current, total) {
+    if (!overlayElement) return;
+
+    const statLine = overlayElement.querySelector('.stat-line');
+    if (statLine) {
+      statLine.innerHTML = `
+        <span class="stat-text">
+          <span class="season-loading-spinner"></span>
+          <span class="loading-text">Analyzing ${current}/${total}...</span>
+        </span>
+      `;
+    }
+  };
+
+  /**
+   * Hide loading state and restore normal stats display
+   */
+  window.hideLoadingState = function () {
+    if (!overlayElement) return;
+
+    const statLine = overlayElement.querySelector('.stat-line');
+    if (statLine) {
+      statLine.innerHTML = `
+        <span class="stat-text">
+          <strong class="match-count">0</strong> of
+          <strong class="total-count">0</strong> match
+        </span>
+      `;
+    }
+  };
+
+  /**
    * Load last picked color from storage
    */
   function loadLastPickedColor() {
