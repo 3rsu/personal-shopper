@@ -653,130 +653,8 @@
 
 
 
-  /**
-   * Check if RGB color is valid hair color
-   * Hair is typically dark and somewhat saturated
-   * @param {Array<number>} rgb - RGB array [r, g, b]
-   * @returns {boolean} - True if color matches hair characteristics
-   */
-  function isValidHairColor(rgb) {
-    // Convert to HSL to check lightness and saturation
-    const r = rgb[0] / 255;
-    const g = rgb[1] / 255;
-    const b = rgb[2] / 255;
 
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const delta = max - min;
 
-    const lightness = (max + min) / 2;
-
-    // Calculate saturation
-    let saturation = 0;
-    if (delta !== 0) {
-      saturation =
-        lightness === 0 || lightness === 1 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-    }
-
-    // Hair is typically darker (lightness < 0.6) and has some saturation (> 0.2)
-    // Allow lighter colors for blonde/gray hair, but require some color presence
-    return lightness < 0.7 && saturation > 0.15;
-  }
-
-  /**
-   * Detect skin tone from canvas using YCbCr color space
-   * @param {HTMLCanvasElement} canvas - Canvas to analyze
-   * @returns {Array<number>|null} - Dominant skin color as RGB, or null if no skin detected
-   */
-  function detectSkinTone(canvas) {
-    try {
-      const ctx = canvas.getContext('2d');
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels = imageData.data;
-
-      const skinPixels = [];
-
-      // Sample every 4th pixel for performance (adjustable)
-      const step = 4;
-      for (let i = 0; i < pixels.length; i += 4 * step) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const rgb = [r, g, b];
-
-        if (isValidSkinColor(rgb)) {
-          skinPixels.push(rgb);
-        }
-      }
-
-      if (skinPixels.length < 10) {
-        return null; // Not enough skin pixels found
-      }
-
-      // Calculate average of all skin pixels
-      const avgR = Math.round(skinPixels.reduce((sum, p) => sum + p[0], 0) / skinPixels.length);
-      const avgG = Math.round(skinPixels.reduce((sum, p) => sum + p[1], 0) / skinPixels.length);
-      const avgB = Math.round(skinPixels.reduce((sum, p) => sum + p[2], 0) / skinPixels.length);
-
-      console.log('[Season Color Checker] Detected skin tone from', skinPixels.length, 'pixels');
-      return [avgR, avgG, avgB];
-    } catch (e) {
-      console.error('[Season Color Checker] Error detecting skin tone:', e);
-      return null;
-    }
-  }
-
-  /**
-   * Detect hair color from canvas (focuses on top portion)
-   * @param {HTMLCanvasElement} canvas - Canvas to analyze
-   * @returns {Array<number>|null} - Dominant hair color as RGB, or null if no hair detected
-   */
-  function detectHairColor(canvas) {
-    try {
-      // Extract top 15% of the canvas (where hair typically is)
-      const hairCanvas = document.createElement('canvas');
-      const hairHeight = Math.floor(canvas.height * 0.15);
-      hairCanvas.width = canvas.width;
-      hairCanvas.height = hairHeight;
-      const hairCtx = hairCanvas.getContext('2d');
-
-      hairCtx.drawImage(canvas, 0, 0, canvas.width, hairHeight, 0, 0, canvas.width, hairHeight);
-
-      const ctx = hairCtx;
-      const imageData = ctx.getImageData(0, 0, hairCanvas.width, hairCanvas.height);
-      const pixels = imageData.data;
-
-      const hairPixels = [];
-
-      // Sample every 4th pixel for performance
-      const step = 4;
-      for (let i = 0; i < pixels.length; i += 4 * step) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const rgb = [r, g, b];
-
-        if (isValidHairColor(rgb)) {
-          hairPixels.push(rgb);
-        }
-      }
-
-      if (hairPixels.length < 10) {
-        return null; // Not enough hair pixels found
-      }
-
-      // Calculate average of all hair pixels
-      const avgR = Math.round(hairPixels.reduce((sum, p) => sum + p[0], 0) / hairPixels.length);
-      const avgG = Math.round(hairPixels.reduce((sum, p) => sum + p[1], 0) / hairPixels.length);
-      const avgB = Math.round(hairPixels.reduce((sum, p) => sum + p[2], 0) / hairPixels.length);
-
-      console.log('[Season Color Checker] Detected hair color from', hairPixels.length, 'pixels');
-      return [avgR, avgG, avgB];
-    } catch (e) {
-      console.error('[Season Color Checker] Error detecting hair color:', e);
-      return null;
-    }
-  }
 
   /**
    * Check if we can access image data without CORS errors
@@ -1269,39 +1147,6 @@
         return;
       }
 
-      // NEW: Detect skin tone and hair color (if enabled)
-      let skinTone = null;
-      let hairColor = null;
-
-      if (settings.faceDetectionEnabled) {
-        try {
-          // Extract upper 40% of image where faces typically appear
-          const upperRegion = extractUpperRegion(processableImage, 0.4);
-          if (upperRegion) {
-            // Detect skin tone from upper region
-            skinTone = detectSkinTone(upperRegion);
-            if (skinTone) {
-              console.log(
-                '[Season Color Checker] Detected skin tone:',
-                colorProcessor.rgbToHex(skinTone),
-              );
-            }
-
-            // Detect hair color from upper region
-            hairColor = detectHairColor(upperRegion);
-            if (hairColor) {
-              console.log(
-                '[Season Color Checker] Detected hair color:',
-                colorProcessor.rgbToHex(hairColor),
-              );
-            }
-          }
-        } catch (e) {
-          console.log('[Season Color Checker] Face detection failed:', e.message);
-          // Continue without face data - not critical
-        }
-      }
-
       // Get current season's palette for user comparison
       const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
       if (!seasonPalette) {
@@ -1370,14 +1215,6 @@
         compatibility: compatibility,
       });
 
-      // Store skin tone and hair color if detected
-      // if (skinTone) {
-      //   img.dataset.skinTone = colorProcessor.rgbToHex(skinTone);
-      // }
-      // if (hairColor) {
-      //   img.dataset.hairColor = colorProcessor.rgbToHex(hairColor);
-      // }
-      console.log('Skin Tone', skinTone, 'Hair Color', hairColor);
       // Apply visual filter based on compatibility
       applyFilter(img, matchResult, productSeasonResult, compatibility);
 
@@ -1551,26 +1388,6 @@
 
         paletteContainer.appendChild(swatch);
       });
-
-      // Add skin tone swatch if detected
-      if (img.dataset.skinTone) {
-        const skinSwatch = document.createElement('div');
-        skinSwatch.className = 'season-color-swatch skin-tone-swatch';
-        skinSwatch.style.backgroundColor = img.dataset.skinTone;
-        skinSwatch.title = `Skin Tone: ${img.dataset.skinTone}`;
-        skinSwatch.textContent = '👤'; // Person icon
-        paletteContainer.appendChild(skinSwatch);
-      }
-
-      // Add hair color swatch if detected
-      if (img.dataset.hairColor) {
-        const hairSwatch = document.createElement('div');
-        hairSwatch.className = 'season-color-swatch hair-color-swatch';
-        hairSwatch.style.backgroundColor = img.dataset.hairColor;
-        hairSwatch.title = `Hair Color: ${img.dataset.hairColor}`;
-        hairSwatch.textContent = '✂️'; // Scissors icon (represents hair)
-        paletteContainer.appendChild(hairSwatch);
-      }
 
       // Add to container
       container.appendChild(paletteContainer);
