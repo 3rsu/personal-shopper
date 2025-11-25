@@ -63,6 +63,14 @@
         settings = response;
         console.log('[Season Color Checker] Settings loaded:', settings);
 
+        // Apply initial showSwatches state
+        if (settings.showSwatches) {
+          document.body.classList.add('show-swatches');
+          console.log('[Season Color Checker] 🎨 Debug mode enabled: swatches will be visible');
+        } else {
+          console.log('[Season Color Checker] Debug mode disabled: swatches hidden');
+        }
+
         // Check if extension should activate on this domain
         const currentDomain = getCurrentDomain();
         const favoriteSites = settings.favoriteSites || [];
@@ -143,8 +151,10 @@
           // Toggle body class to show/hide swatches
           if (changes.showSwatches.newValue) {
             document.body.classList.add('show-swatches');
+            console.log('[Season Color Checker] 🎨 Debug mode toggled ON: swatches now visible');
           } else {
             document.body.classList.remove('show-swatches');
+            console.log('[Season Color Checker] 🎨 Debug mode toggled OFF: swatches now hidden');
           }
         }
 
@@ -1231,6 +1241,9 @@
   function addColorPaletteSwatch(container, img) {
     // Don't add swatches to small images (icons, thumbnails)
     if (img.offsetWidth < 100 || img.offsetHeight < 100) {
+      console.log(
+        `[Season Color Checker] 🎨 Swatch skipped: image too small (${img.offsetWidth}x${img.offsetHeight}px)`,
+      );
       return;
     }
 
@@ -1243,11 +1256,16 @@
     // Get dominant colors from the image dataset
     const dominantColorsJson = img.dataset.dominantColors;
     if (!dominantColorsJson) {
+      console.log('[Season Color Checker] 🎨 Swatch skipped: no color data in dataset');
       return; // No color data available
     }
 
     try {
       const dominantColors = JSON.parse(dominantColorsJson);
+      console.log(
+        `[Season Color Checker] 🎨 Creating swatches for ${dominantColors.length} colors:`,
+        dominantColors,
+      );
 
       // Create container for color swatches
       const paletteContainer = document.createElement('div');
@@ -1273,8 +1291,11 @@
 
       // Add to container
       container.appendChild(paletteContainer);
+      console.log(
+        `[Season Color Checker] ✅ Swatches added to image (visible: ${document.body.classList.contains('show-swatches')})`,
+      );
     } catch (error) {
-      console.error('Error creating color palette swatch:', error);
+      console.error('[Season Color Checker] ❌ Error creating color palette swatch:', error);
     }
   }
 
