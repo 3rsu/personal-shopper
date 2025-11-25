@@ -1044,26 +1044,12 @@
         return;
       }
 
-      // Detect which season(s) the product belongs to
-      const productSeasonResult = colorProcessor.detectProductSeason(
-        dominantColors,
-        SEASONAL_PALETTES,
-      );
-      // Analyze compatibility with user's season
-      const compatibility = colorProcessor.analyzeSeasonCompatibility(
-        productSeasonResult,
-        settings.selectedSeason,
-      );
-
-      // Legacy match result for backward compatibility
+      // Check if product colors match user's selected season
       const matchResult = colorProcessor.checkColorMatch(dominantColors, seasonPalette.colors);
 
-      // Store enhanced match data on element BEFORE applying filter (so swatch function can access it)
-      img.dataset.seasonMatch = compatibility.compatible ? 'true' : 'false';
+      // Store match data on element
+      img.dataset.seasonMatch = matchResult.matches ? 'true' : 'false';
       img.dataset.matchScore = matchResult.confidence.toFixed(0);
-      img.dataset.productSeason = productSeasonResult.primarySeason?.seasonKey || 'unknown';
-      img.dataset.productSeasonName = productSeasonResult.primarySeason?.seasonName || 'Unknown';
-      img.dataset.compatibilityType = compatibility.matchType || 'none';
 
       // Build display palette: selected swatch first (if exists), then top ColorThief colors
       let displayColors;
@@ -1095,17 +1081,12 @@
       }
 
       img.dataset.dominantColors = JSON.stringify(displayColors);
-      img.dataset.seasonData = JSON.stringify({
-        primary: productSeasonResult.primarySeason,
-        secondary: productSeasonResult.secondarySeasons,
-        compatibility: compatibility,
-      });
 
-      // Apply visual filter based on compatibility
-      applyFilter(img, matchResult, productSeasonResult, compatibility);
+      // Apply visual filter based on match result
+      applyFilter(img, matchResult);
 
       // Update stats
-      if (compatibility.compatible) {
+      if (matchResult.matches) {
         stats.matchingImages++;
       }
     } catch (error) {
@@ -1182,7 +1163,7 @@
   /**
    * Apply visual filter to image
    */
-  function applyFilter(img, matchResult, productSeasonResult, compatibility) {
+  function applyFilter(img, matchResult) {
     // Don't apply filters to small images (icons, thumbnails)
     if (img.offsetWidth < 100 || img.offsetHeight < 100) {
       return;
@@ -1224,7 +1205,7 @@
       }
     }
 
-    if (compatibility.compatible) {
+    if (matchResult.matches) {
       // Green border for matches
       img.classList.add('season-match');
       container.classList.remove('season-dimmed');
@@ -1237,11 +1218,11 @@
     // Add color palette debug display
     addColorPaletteSwatch(container, img);
 
-    // Add enhanced match badge with season info
-    addMatchBadge(container, img, matchResult, productSeasonResult, compatibility);
+    // Add match badge
+    addMatchBadge(container, img, matchResult);
 
-    // Add enhanced hover tooltip with season details
-    addTooltip(img, matchResult, productSeasonResult, compatibility);
+    // Add hover tooltip
+    addTooltip(img, matchResult);
   }
 
   /**
@@ -1298,9 +1279,9 @@
   }
 
   /**
-   * Add match badge overlay with season information
+   * Add match badge overlay
    */
-  function addMatchBadge(container, img, matchResult, productSeasonResult, compatibility) {
+  function addMatchBadge(container, img, matchResult) {
     // Don't add badges to small images (icons, thumbnails)
     if (img.offsetWidth < 100 || img.offsetHeight < 100) {
       return;
@@ -1315,61 +1296,31 @@
     const badge = document.createElement('div');
     badge.className = 'season-badge';
 
-    // Show product's season emoji and compatibility indicator
-    const primarySeason = productSeasonResult?.primarySeason;
-    if (primarySeason && primarySeason.emoji) {
-      if (compatibility.compatible) {
-        badge.innerHTML = `✓`;
-        badge.classList.add('match');
-      } else {
-        badge.innerHTML = `˟`;
-        badge.classList.add('no-match');
-      }
+    // Show checkmark or X based on match
+    if (matchResult.matches) {
+      badge.innerHTML = '✓';
+      badge.classList.add('match');
     } else {
-      // Fallback to simple checkmark/cross if no season detected
-      if (matchResult.matches) {
-        badge.innerHTML = '✓';
-        badge.classList.add('match');
-      } else {
-        badge.innerHTML = '✗';
-        badge.classList.add('no-match');
-      }
+      badge.innerHTML = '✗';
+      badge.classList.add('no-match');
     }
 
     container.appendChild(badge);
   }
 
   /**
-   * Add hover tooltip showing match details with season information
+   * Add hover tooltip showing match details
    */
-  function addTooltip(img, matchResult, productSeasonResult, compatibility) {
-    const primarySeason = productSeasonResult?.primarySeason;
-    const secondarySeasons = productSeasonResult?.secondarySeasons || [];
-
-    if (!primarySeason) {
-      img.title = `No clear season match detected`;
-      return;
-    }
-
+  function addTooltip(img, matchResult) {
+    const seasonName = SEASONAL_PALETTES[settings.selectedSeason]?.name || settings.selectedSeason;
     let tooltip = '';
 
-    if (compatibility.compatible) {
-      if (compatibility.matchType === 'primary') {
-        tooltip = `✓ ${primarySeason.emoji} ${primarySeason.seasonName}\n`;
-        tooltip += `Perfect match for your season! (${primarySeason.confidence.toFixed(0)}% match)`;
-      } else if (compatibility.matchType === 'secondary') {
-        tooltip = `✓ ${primarySeason.emoji} ${primarySeason.seasonName}\n`;
-        tooltip += `Also works for your season (${matchResult.confidence.toFixed(0)}% match)`;
-      }
-      if (secondarySeasons.length > 0) {
-        tooltip += `\nAlso works for: ${secondarySeasons.map((s) => s.seasonName).join(', ')}`;
-      }
+    if (matchResult.matches) {
+      tooltip = `✓ Matches your ${seasonName} palette\n`;
+      tooltip += `Confidence: ${matchResult.confidence.toFixed(0)}%`;
     } else {
-      tooltip = `✗ ${primarySeason.emoji} ${primarySeason.seasonName} item\n`;
-      tooltip += compatibility.reason;
-      if (compatibility.recommendation) {
-        tooltip += `\n${compatibility.recommendation}`;
-      }
+      tooltip = `✗ Doesn't match your ${seasonName} palette\n`;
+      tooltip += `Confidence: ${matchResult.confidence.toFixed(0)}%`;
     }
 
     img.title = tooltip;
