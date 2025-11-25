@@ -14,7 +14,7 @@
 body {
   width: 400px;
   min-height: 500px;
-  font-family: Montserrat;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
   color: #faf9f5;
   background: #fafaf8;
 }
@@ -39,7 +39,6 @@ body {
   justify-content: flex-start;
   gap: 10px;
   color: #333333;
-  font-family: Montserrat;
   margin: 0;
 }
 
@@ -178,16 +177,20 @@ body {
 
 .section-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 4px;
-  color: #3a3a3a;
-  letter-spacing: -0.01em;
+  color: #1f1f1f;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .section-description {
-  font-size: 13px;
-  color: #9a9a9a;
+  font-size: 11px;
+  color: #6b7280;
   line-height: 1.5;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .section-header {
@@ -602,7 +605,6 @@ input:checked + .toggle-slider:before {
   padding: 7px 12px;
   border-radius: 8px;
   font-size: 11px;
-  font-family: Montserrat, Arial, sans-serif;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -648,14 +650,15 @@ input:checked + .toggle-slider:before {
   cursor: pointer;
 }
 
-.option-item input[type="checkbox"] {
+.option-item input[type='checkbox'] {
   margin-right: 8px;
 }
 
 .option-label {
   font-size: 14px;
   font-weight: 500;
-  color: #1f2937;
+  /* color: #1f2937; */
+  color: #6b7280;
 }
 
 .option-description {
@@ -684,13 +687,15 @@ input:checked + .toggle-slider:before {
 }
 
 .favorites-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #3a3a3a;
+  color: #4a4a4a;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 6px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .favorites-count {
@@ -774,7 +779,6 @@ input:checked + .toggle-slider:before {
   content: ' (current)';
   font-size: 11px;
   color: #5b7a68;
-  font-family: Montserrat;
   font-weight: 500;
 }
 
@@ -887,11 +891,12 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .picker-title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: #3a3a3a;
+  color: #4a4a4a;
   margin-bottom: 4px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .picker-description {
@@ -947,10 +952,11 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .section-subtitle {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #3a3a3a;
-  letter-spacing: -0.01em;
+  color: #4a4a4a;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .color-history-list {

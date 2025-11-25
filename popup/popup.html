@@ -14,7 +14,12 @@
         Shop your Color
       </h1>
       <div class="header-controls">
-        <button class="favorite-btn" id="favorite-btn" title="Activate extension on this site" aria-label="Activate extension on this site">
+        <button
+          class="favorite-btn"
+          id="favorite-btn"
+          title="Activate extension on this site"
+          aria-label="Activate extension on this site"
+        >
           <span class="heart-icon">♡</span>
         </button>
       </div>
@@ -60,17 +65,17 @@
           <label class="option-item">
             <input type="checkbox" id="show-overlay-toggle" checked />
             <span class="option-label">Show overlay widget</span>
-            <p class="option-description">
+            <!-- <p class="option-description">
               Display the floating stats widget on the page.
-            </p>
+            </p> -->
           </label>
 
           <label class="option-item">
             <input type="checkbox" id="show-swatches-toggle" />
             <span class="option-label">Show color swatches (debug mode)</span>
-            <p class="option-description">
+            <!-- <p class="option-description">
               Display detected colors. Note: Color detection is ~70% accurate.
-            </p>
+            </p> -->
           </label>
         </div>
 
@@ -81,19 +86,23 @@
               <h3 class="favorites-title">
                 Active Sites <span class="favorites-count" id="favorites-count">(0)</span>
               </h3>
-              <button class="btn btn-text btn-sm" id="toggle-favorites-list" aria-label="Manage active sites">
+              <button
+                class="btn btn-text btn-sm"
+                id="toggle-favorites-list"
+                aria-label="Manage active sites"
+              >
                 Manage <span class="expand-icon">▼</span>
               </button>
             </div>
             <p class="favorites-description">Extension will only run on these sites</p>
           </div>
 
-          <div class="favorites-list-container" id="favorites-list-container" style="display: none;">
+          <div class="favorites-list-container" id="favorites-list-container" style="display: none">
             <div id="favorites-list" class="favorites-list"></div>
-            <button class="btn-show-all-favorites" id="show-all-favorites" style="display: none;">
+            <button class="btn-show-all-favorites" id="show-all-favorites" style="display: none">
               Show all (<span id="remaining-count">0</span> more)
             </button>
-            <button class="btn-add-current-site" id="add-current-site" style="display: none;">
+            <button class="btn-add-current-site" id="add-current-site" style="display: none">
               + Add <span id="add-site-domain"></span>
             </button>
           </div>

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Shop Your Color: Seasonal Color Filter",
+
   "version": "1.0.0",
-  "description": "Automatically highlights items in your seasonal palette so you can shop with confidence. May refetch images to analyze colors.",
+  "description": "Automatically highlights clothes in your seasonal palette while you shop online. Shop with confidence!",
 
   "permissions": ["storage", "activeTab", "scripting"],
 
@@ -54,12 +55,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": [
-        "icons/*",
-        "content/eyedropper.js",
-        "content/eyedropper.css",
-        "dist/*"
-      ],
+      "resources": ["icons/*", "content/eyedropper.js", "content/eyedropper.css", "dist/*"],
       "matches": ["*://*/*"]
     }
   ]
