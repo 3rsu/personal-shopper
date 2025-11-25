@@ -86,9 +86,10 @@ chrome.runtime.onInstalled.addListener((details) => {
 /**
  * Load storage cache on startup
  */
-chrome.storage.sync.get(['selectedSeason', 'filterEnabled'], (data) => {
+chrome.storage.sync.get(['selectedSeason', 'filterEnabled', 'favoriteSites'], (data) => {
   storageCache.selectedSeason = data.selectedSeason;
   storageCache.filterEnabled = data.filterEnabled !== false; // Default true
+  storageCache.favoriteSites = data.favoriteSites || [];
 });
 
 chrome.storage.local.get(['wishlist', 'colorHistory', 'domainStats', 'blockedDomains'], (data) => {
@@ -157,6 +158,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.filterEnabled) {
       storageCache.filterEnabled = changes.filterEnabled.newValue;
     }
+    if (changes.favoriteSites) {
+      storageCache.favoriteSites = changes.favoriteSites.newValue;
+    }
   } else if (areaName === 'local') {
     if (changes.wishlist) {
       storageCache.wishlist = changes.wishlist.newValue;
@@ -182,7 +186,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getSettings') {
     sendResponse({
       selectedSeason: storageCache.selectedSeason,
-      filterEnabled: storageCache.filterEnabled
+      filterEnabled: storageCache.filterEnabled,
+      favoriteSites: storageCache.favoriteSites
     });
     return true;
   }

@@ -462,8 +462,8 @@
       newFavorites = [...favoriteSites, domain];
     }
 
-    // Update storage
-    chrome.storage.sync.set({ favoriteSites: newFavorites });
+    // Update storage - wait for it to complete before reloading
+    await chrome.storage.sync.set({ favoriteSites: newFavorites });
     currentSettings.favoriteSites = newFavorites;
 
     // Update UI
