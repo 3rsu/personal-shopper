@@ -127,7 +127,7 @@ class ColorProcessor {
   }
 
   /**
-   * Check if dominant colors match palette (majority rule)
+   * Check if dominant colors match palette (simplified top-2 logic)
    * @param {Array} dominantColors - Array of RGB arrays from Color Thief
    * @param {Array} paletteHexColors - Array of palette hex colors
    * @returns {Object} Match result with details
@@ -140,8 +140,22 @@ class ColorProcessor {
     const results = [];
     let matchCount = 0;
 
-    // Check all extracted dominant colors (up to 5)
-    const colorsToCheck = dominantColors.slice(0, 5);
+    // ============================================================================
+    // SIMPLIFIED MATCHING LOGIC - Easy to adjust for future changes
+    // ============================================================================
+    // Configuration (change these values to tune matching behavior):
+    const COLORS_TO_CHECK = 2;  // How many dominant colors to analyze (default: 2)
+    const MATCH_THRESHOLD = 1;  // How many must match to consider item a match (default: 1)
+
+    // Examples of how to adjust:
+    // - More strict: COLORS_TO_CHECK = 2, MATCH_THRESHOLD = 2 (both colors must match)
+    // - Current (permissive): COLORS_TO_CHECK = 2, MATCH_THRESHOLD = 1 (any 1 color matches)
+    // - More colors: COLORS_TO_CHECK = 3, MATCH_THRESHOLD = 2 (2 of 3 must match - 66% rule)
+    // - Old system: COLORS_TO_CHECK = 5, MATCH_THRESHOLD = 3 (3 of 5 majority rule)
+    // ============================================================================
+
+    // Check top N dominant colors
+    const colorsToCheck = dominantColors.slice(0, COLORS_TO_CHECK);
 
     for (const rgb of colorsToCheck) {
       const hex = this.rgbToHex(rgb);
@@ -159,10 +173,8 @@ class ColorProcessor {
       }
     }
 
-    // Item matches if MAJORITY of colors match (more than 50%)
-    // This is robust: works for single-color items and multi-color patterns
-    const majorityThreshold = Math.ceil(colorsToCheck.length / 2);
-    const matches = matchCount >= majorityThreshold;
+    // Simple threshold check: do we have enough matches?
+    const matches = matchCount >= MATCH_THRESHOLD;
 
     return {
       matches,
@@ -170,7 +182,7 @@ class ColorProcessor {
       totalColors: colorsToCheck.length,
       details: results,
       confidence: (matchCount / colorsToCheck.length) * 100,
-      majorityThreshold // Include for debugging/display
+      matchThreshold: MATCH_THRESHOLD // Include for debugging/display
     };
   }
 

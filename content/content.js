@@ -15,7 +15,6 @@
   let settings = {
     selectedSeason: null,
     filterEnabled: true,
-    faceDetectionEnabled: true, // Enable face/skin/hair detection
     textColorEnhancementEnabled: true, // Enable text-based color enhancement
   };
 
@@ -67,8 +66,8 @@
         // Check if extension should activate on this domain
         const currentDomain = getCurrentDomain();
         const favoriteSites = settings.favoriteSites || [];
-        const isFavorite = favoriteSites.some(site =>
-          currentDomain.includes(site) || site.includes(currentDomain)
+        const isFavorite = favoriteSites.some(
+          (site) => currentDomain.includes(site) || site.includes(currentDomain),
         );
 
         // Only activate if domain is in favorites
@@ -163,6 +162,80 @@
       sendResponse({ success: true });
     }
 
+    // NEW: Expose swatch detection JSON API
+    if (request.action === 'getSwatchesJSON') {
+      try {
+        // Determine container to search
+        const container = request.containerSelector
+          ? document.querySelector(request.containerSelector)
+          : document.body;
+
+        if (!container) {
+          sendResponse({
+            success: false,
+            error: 'Container not found',
+          });
+          return true;
+        }
+
+        // Get product image if available
+        const productImage = request.productImageSelector
+          ? document.querySelector(request.productImageSelector)
+          : null;
+
+        // Build options
+        const options = {
+          includeDisabled: request.includeDisabled !== false,
+          includePatterns: request.includePatterns !== false,
+          minConfidence: request.minConfidence || 0.3,
+          maxSwatches: request.maxSwatches || 50,
+          productImage: productImage,
+        };
+
+        // Call swatch detector API
+        if (typeof window.getSwatchesAsJSON === 'function') {
+          const result = window.getSwatchesAsJSON(container, options);
+
+          // Remove element references before sending (can't send DOM elements via message)
+          const serializedResult = {
+            swatches: result.swatches.map((swatch) => ({
+              id: swatch.id,
+              color: swatch.color,
+              colorRgb: swatch.colorRgb,
+              label: swatch.label,
+              image: swatch.image,
+              selected: swatch.selected,
+              confidence: swatch.confidence,
+              source: swatch.source,
+              isPattern: swatch.isPattern,
+              isDisabled: swatch.isDisabled,
+              attributes: swatch.attributes,
+            })),
+            selectedIndex: result.selectedIndex,
+            totalCount: result.totalCount,
+            errors: result.errors,
+          };
+
+          sendResponse({
+            success: true,
+            data: serializedResult,
+          });
+        } else {
+          sendResponse({
+            success: false,
+            error: 'Swatch detector not loaded',
+          });
+        }
+      } catch (error) {
+        sendResponse({
+          success: false,
+          error: error.message,
+        });
+      }
+
+      return true;
+    }
+
     return true;
   }
 
@@ -237,7 +310,7 @@
   async function findAndProcessImages() {
     const images = findProductImages();
     const pageType = detectPageType(images);
-    const totalToProcess = images.filter(img => !processedImages.has(img)).length;
+    const totalToProcess = images.filter((img) => !processedImages.has(img)).length;
     let processedCount = 0;
 
     // Process all images
@@ -523,14 +596,44 @@
    * Filter out background and desaturated colors from palette
    * @param {Array<Array<number>>} palette - Array of RGB color arrays
    * @param {Array<number>|null} backgroundColor - RGB array of detected background
+   * @param {Array<Object>} textColorMentions - Text color mentions from product description (optional)
    * @returns {Array<Array<number>>} - Filtered palette
    */
-  function filterBackgroundColors(palette, backgroundColor) {
+  function filterBackgroundColors(palette, backgroundColor, textColorMentions = []) {
     if (!palette || palette.length === 0) return palette;
 
     return palette.filter((color) => {
-      // Filter out colors similar to background (deltaE < 15)
-      if (backgroundColor) {
+      // TEXT-ENHANCEMENT BACKGROUND PROTECTION
+      // If text mentions this color AND it's similar to background, KEEP it
+      // Rationale: It's likely the product color, not the background
+      // Example: "Navy Blue Sweater" on navy background → keep navy
+      if (backgroundColor && textColorMentions.length > 0) {
+        const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
+        if (deltaE < 30) {
+          // Color is similar to background - check if text mentions it
+          const colorHex = colorProcessor.rgbToHex(color);
+          const isTextMentioned = textColorMentions.some((mention) => {
+            if (!mention.hex) return false;
+            const textDeltaE = colorProcessor.calculateDeltaE(
+              colorProcessor.hexToRgb(mention.hex),
+              color,
+            );
+            return textDeltaE < 20; // Close match to text-mentioned color
+          });
+
+          if (isTextMentioned) {
+            console.log(
+              '[Season Color Checker] Preserving color similar to background (text-mentioned):',
+              colorHex,
+            );
+            return true; // KEEP - text confirms this is the product color
+          }
+
+          // Not text-mentioned, filter it out as background
+          return false;
+        }
+      } else if (backgroundColor) {
+        // No text mentions available, use original logic
         const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
         if (deltaE < 30) {
           return false;
@@ -547,78 +650,8 @@
     });
   }
 
-  /**
-   * Extract upper region of image where faces typically appear
-   * @param {HTMLImageElement|HTMLCanvasElement} img - Image to extract from
-   * @param {number} topPercent - Percentage of image to extract from top (0-1)
-   * @returns {HTMLCanvasElement|null} - Canvas with upper region
-   */
-  function extractUpperRegion(img, topPercent = 0.4) {
-    try {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
 
-      const extractHeight = Math.floor(height * topPercent);
 
-      if (extractHeight <= 0 || width <= 0) {
-        return null;
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = extractHeight;
-      const ctx = canvas.getContext('2d');
-
-      // Draw top portion of image
-      ctx.drawImage(
-        img,
-        0,
-        0,
-        width,
-        extractHeight, // Source: top region
-        0,
-        0,
-        width,
-        extractHeight, // Dest: fill canvas
-      );
-
-      return canvas;
-    } catch (e) {
-      console.error('[Season Color Checker] Error extracting upper region:', e);
-      return null;
-    }
-  }
-
-  /**
-   * Convert RGB to YCbCr color space (better for skin detection)
-   * @param {Array<number>} rgb - RGB array [r, g, b]
-   * @returns {Array<number>} - YCbCr array [y, cb, cr]
-   */
-  function rgbToYCbCr(rgb) {
-    const r = rgb[0];
-    const g = rgb[1];
-    const b = rgb[2];
-
-    const y = 0.299 * r + 0.587 * g + 0.114 * b;
-    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-    return [y, cb, cr];
-  }
-
-  /**
-   * Check if RGB color is valid skin tone (works across all ethnicities)
-   * Uses YCbCr color space thresholds
-   * @param {Array<number>} rgb - RGB array [r, g, b]
-   * @returns {boolean} - True if color is within skin tone range
-   */
-  function isValidSkinColor(rgb) {
-    const [y, cb, cr] = rgbToYCbCr(rgb);
-
-    // YCbCr thresholds for skin detection (empirically validated)
-    // Works for all skin tones from very light to very dark
-    return cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
-  }
 
   /**
    * Check if RGB color is valid hair color
@@ -903,81 +936,81 @@
         return;
       }
 
-      // ========================================
-      // STEP 1: SWATCH-FIRST PROCESSING (NEW)
-      // Try to detect website swatch BEFORE ColorThief
-      // ========================================
-      if (typeof findSelectedSwatchForImage === 'function') {
-        try {
-          const selectedSwatch = findSelectedSwatchForImage(img, pageType);
+      // // ========================================
+      // // STEP 1: SWATCH-FIRST PROCESSING (NEW)
+      // // Try to detect website swatch BEFORE ColorThief
+      // // ========================================
+      // if (typeof findSelectedSwatchForImage === '') {
+      //   try {
+      //     const selectedSwatch = findSelectedSwatchForImage(img, pageType);
 
-          if (selectedSwatch) {
-            const swatchColor = extractSwatchColor(selectedSwatch);
+      //     if (selectedSwatch) {
+      //       const swatchColor = extractSwatchColor(selectedSwatch);
 
-            // On listing pages, use lower confidence threshold (prefer swatches over image analysis)
-            const confidenceThreshold = pageType === 'listing' ? 0.3 : 0.7;
+      //       // On listing pages, use lower confidence threshold (prefer swatches over image analysis)
+      //       const confidenceThreshold = pageType === 'listing' ? 0.3 : 0.7;
 
-            if (swatchColor && swatchColor.confidence >= confidenceThreshold) {
-              // High-confidence swatch detected! Skip ColorThief processing
-              const processingTime = (performance.now() - startTime).toFixed(1);
-              console.log(
-                `[Season Color Checker] 🎨 Using website swatch (${
-                  swatchColor.source
-                }, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
-              );
-              console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
+      //       if (swatchColor && swatchColor.confidence >= confidenceThreshold) {
+      //         // High-confidence swatch detected! Skip ColorThief processing
+      //         const processingTime = (performance.now() - startTime).toFixed(1);
+      //         console.log(
+      //           `[Season Color Checker] 🎨 Using website swatch (${
+      //             swatchColor.source
+      //           }, confidence: ${swatchColor.confidence.toFixed(2)}, ${processingTime}ms)`,
+      //         );
+      //         console.log('[Season Color Checker] Swatch color:', swatchColor.hex);
 
-              // Get season palette
-              const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
-              if (!seasonPalette) {
-                console.warn(
-                  '[Season Color Checker] Invalid season selected:',
-                  settings.selectedSeason,
-                );
-                return;
-              }
+      //         // Get season palette
+      //         const seasonPalette = SEASONAL_PALETTES[settings.selectedSeason];
+      //         if (!seasonPalette) {
+      //           console.warn(
+      //             '[Season Color Checker] Invalid season selected:',
+      //             settings.selectedSeason,
+      //           );
+      //           return;
+      //         }
 
-              // Use findClosestMatch for simple binary matching
-              const matchResult = colorProcessor.findClosestMatch(
-                swatchColor.hex,
-                seasonPalette.colors,
-              );
+      //         // Use findClosestMatch for simple binary matching
+      //         const matchResult = colorProcessor.findClosestMatch(
+      //           swatchColor.hex,
+      //           seasonPalette.colors,
+      //         );
 
-              // Store swatch data on element
-              img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
-              img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
-              img.dataset.selectedSwatchColor = swatchColor.hex;
-              img.dataset.selectedSwatchSource = swatchColor.source;
-              img.dataset.dominantColors = JSON.stringify([swatchColor.hex]);
-              img.dataset.swatchOnly = 'true'; // Flag for display logic
+      //         // Store swatch data on element
+      //         img.dataset.seasonMatch = matchResult.isMatch ? 'true' : 'false';
+      //         img.dataset.matchScore = matchResult.isMatch ? '100' : '0';
+      //         img.dataset.selectedSwatchColor = swatchColor.hex;
+      //         img.dataset.selectedSwatchSource = swatchColor.source;
+      //         img.dataset.dominantColors = JSON.stringify([swatchColor.hex]);
+      //         img.dataset.swatchOnly = 'true'; // Flag for display logic
 
-              // Apply simplified filter (match or no-match only)
-              applySwatchOnlyFilter(img, matchResult, swatchColor);
+      //         // Apply simplified filter (match or no-match only)
+      //         applySwatchOnlyFilter(img, matchResult, swatchColor);
 
-              // Update stats
-              if (matchResult.isMatch) {
-                stats.matchingImages++;
-              }
+      //         // Update stats
+      //         if (matchResult.isMatch) {
+      //           stats.matchingImages++;
+      //         }
 
-              // Log performance savings
-              console.log(
-                `[Season Color Checker] ⚡ Skipped ColorThief processing (saved ~100-150ms)`,
-              );
+      //         // Log performance savings
+      //         console.log(
+      //           `[Season Color Checker] ⚡ Skipped ColorThief processing (saved ~100-150ms)`,
+      //         );
 
-              return; // EARLY EXIT - Skip ColorThief entirely
-            } else if (swatchColor) {
-              console.log(
-                `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(
-                  2,
-                )} < ${confidenceThreshold}), falling back to ColorThief`,
-              );
-            }
-          }
-        } catch (swatchError) {
-          console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
-          // Fall through to ColorThief processing
-        }
-      }
+      //         return; // EARLY EXIT - Skip ColorThief entirely
+      //       } else if (swatchColor) {
+      //         console.log(
+      //           `[Season Color Checker] Found swatch but confidence too low (${swatchColor.confidence.toFixed(
+      //             2,
+      //           )} < ${confidenceThreshold}), falling back to ColorThief`,
+      //         );
+      //       }
+      //     }
+      //   } catch (swatchError) {
+      //     console.log('[Season Color Checker] Swatch detection failed:', swatchError.message);
+      //     // Fall through to ColorThief processing
+      //   }
+      // }
 
       // ========================================
       // STEP 2: COLORTHIEF FALLBACK PROCESSING
@@ -1050,8 +1083,30 @@
         // Step 3: Extract dominant colors from center region
         const rawColors = colorThief.getPalette(imageToAnalyze, 8); // Get more colors initially
 
+        // Step 3.5: Extract text color mentions BEFORE background filtering
+        // This allows us to protect text-mentioned colors from being filtered as background
+        let textColorMentions = [];
+        if (
+          settings.textColorEnhancementEnabled &&
+          typeof extractColorKeywordsFromDOM === 'function'
+        ) {
+          try {
+            textColorMentions = extractColorKeywordsFromDOM(img) || [];
+            if (textColorMentions.length > 0) {
+              console.log(
+                '[Season Color Checker] Found text color mentions (for background protection):',
+                textColorMentions.map((m) => m.keyword).join(', '),
+              );
+            }
+          } catch (textError) {
+            console.log('[Season Color Checker] Text color extraction failed:', textError.message);
+            textColorMentions = [];
+          }
+        }
+
         // Step 4: Filter out background and desaturated colors
-        dominantColors = filterBackgroundColors(rawColors, backgroundColor);
+        // Pass text mentions to protect product colors that match text descriptions
+        dominantColors = filterBackgroundColors(rawColors, backgroundColor, textColorMentions);
 
         console.log(
           '[Season Color Checker] Filtered palette:',
@@ -1059,58 +1114,51 @@
           'colors after background removal',
         );
 
-        // NEW Step 5: Extract text color mentions and apply weighting
+        // Step 5: Apply text-based weighting to palette
         if (
           settings.textColorEnhancementEnabled &&
-          typeof extractColorKeywordsFromDOM === 'function'
+          textColorMentions.length > 0 &&
+          typeof applyTextColorWeighting === 'function'
         ) {
           try {
-            const textColorMentions = extractColorKeywordsFromDOM(img);
+            // Text mentions already extracted in Step 3.5 for background protection
+            console.log(
+              '[Season Color Checker] Applying text-based weighting:',
+              textColorMentions.map((m) => m.keyword).join(', '),
+            );
 
-            if (textColorMentions && textColorMentions.length > 0) {
-              console.log(
-                '[Season Color Checker] Found text color mentions:',
-                textColorMentions.map((m) => m.keyword).join(', '),
-              );
+            // Apply text-based weighting to palette
+            const weightedPalette = applyTextColorWeighting(
+              dominantColors,
+              textColorMentions,
+              colorProcessor,
+            );
 
-              // Apply text-based weighting to palette
-              if (typeof applyTextColorWeighting === 'function') {
-                const weightedPalette = applyTextColorWeighting(
-                  dominantColors,
-                  textColorMentions,
-                  colorProcessor,
-                );
-
-                // Use selectFinalPalette to ensure text-matched colors are preserved
-                if (typeof selectFinalPalette === 'function') {
-                  // Select final palette with guaranteed slots for text-matched colors
-                  dominantColors = selectFinalPalette(weightedPalette, 5, 2);
-                } else {
-                  // Fallback: simple slice (old behavior)
-                  dominantColors = weightedPalette.map((item) => item.rgb).slice(0, 5);
-                }
-
-                // Optionally augment palette with high-confidence text colors not in visual palette
-                if (typeof augmentPaletteWithTextColors === 'function') {
-                  dominantColors = augmentPaletteWithTextColors(
-                    dominantColors,
-                    textColorMentions,
-                    colorProcessor,
-                    2,
-                  );
-                }
-              }
+            // Use selectFinalPalette to ensure text-matched colors are preserved
+            if (typeof selectFinalPalette === 'function') {
+              // Select final palette with guaranteed slots for text-matched colors
+              dominantColors = selectFinalPalette(weightedPalette, 5, 2);
             } else {
-              // No text colors found, just take top 5
-              dominantColors = dominantColors.slice(0, 5);
+              // Fallback: simple slice (old behavior)
+              dominantColors = weightedPalette.map((item) => item.rgb).slice(0, 5);
+            }
+
+            // Optionally augment palette with high-confidence text colors not in visual palette
+            if (typeof augmentPaletteWithTextColors === 'function') {
+              dominantColors = augmentPaletteWithTextColors(
+                dominantColors,
+                textColorMentions,
+                colorProcessor,
+                2,
+              );
             }
           } catch (textError) {
-            console.log('[Season Color Checker] Text color extraction failed:', textError.message);
+            console.log('[Season Color Checker] Text weighting failed:', textError.message);
             // Continue without text enhancement - not critical
             dominantColors = dominantColors.slice(0, 5);
           }
         } else {
-          // Text enhancement disabled, just take top 5
+          // Text enhancement disabled or no text mentions, just take top 5
           dominantColors = dominantColors.slice(0, 5);
         }
 

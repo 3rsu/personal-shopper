@@ -26,25 +26,30 @@ function findSelectedSwatchForImage(img, pageType) {
     return null;
   }
 
+  console.log('[Swatch Priority] Container found, now searching for selected swatch...');
+  console.log('[Swatch Priority] Container bounds:', container.getBoundingClientRect());
+
   // Tier 1: Native form controls (90% reliability)
   // Works for: Shopify, Amazon, BigCommerce, WooCommerce
-  let selected = findByRadioInput(container);
+  let selected = findByRadioInput(container, img);
   if (selected) {
-    console.log('[Swatch Priority] Detected via radio input (Tier 1)');
+    console.log('[Swatch Priority] ✓ Detected via radio input (Tier 1)');
+    console.log('[Swatch Priority] Selected swatch:', selected, selected.getBoundingClientRect());
     return selected;
   }
 
-  // Tier 2: Common CSS classes (80% reliability)
+  // Tier 2: Common CSS classes (80% reliability) - NOW WITH SPATIAL VALIDATION
   // Works for: WooCommerce, Magento 2, custom sites
-  selected = findByCommonClasses(container);
+  selected = findByCommonClasses(container, img);
   if (selected) {
-    console.log('[Swatch Priority] Detected via CSS class (Tier 2)');
+    console.log('[Swatch Priority] ✓ Detected via CSS class (Tier 2)');
+    console.log('[Swatch Priority] Selected swatch:', selected, selected.getBoundingClientRect());
     return selected;
   }
 
   // Tier 3: ARIA attributes (60-70% reliability)
   // Works for: Magento 2, accessibility-focused sites
-  selected = findByAriaAttributes(container);
+  selected = findByAriaAttributes(container, img);
   if (selected) {
     console.log('[Swatch Priority] Detected via ARIA attributes (Tier 3)');
     return selected;
@@ -52,7 +57,7 @@ function findSelectedSwatchForImage(img, pageType) {
 
   // Tier 4: Data attributes (40-50% reliability)
   // Works for: some custom implementations
-  selected = findByDataAttributes(container);
+  selected = findByDataAttributes(container, img);
   if (selected) {
     console.log('[Swatch Priority] Detected via data attributes (Tier 4)');
     return selected;
@@ -60,7 +65,7 @@ function findSelectedSwatchForImage(img, pageType) {
 
   // Tier 5: Visual style detection (fallback)
   // Last resort for unusual implementations
-  selected = findByVisualStyles(container);
+  selected = findByVisualStyles(container, img);
   if (selected) {
     console.log('[Swatch Priority] Detected via visual styles (Tier 5)');
     return selected;
@@ -81,58 +86,197 @@ function findSelectedSwatchForImage(img, pageType) {
 }
 
 /**
+ * Check if an element contains swatches
+ * Looks for common swatch patterns: small elements with backgrounds, buttons, links, etc.
+ * @param {Element} element - Element to check
+ * @returns {boolean} - True if swatches found
+ */
+function checkForSwatches(element) {
+  if (!element || !element.querySelectorAll) return false;
+
+  // Try common swatch selectors
+  const swatchSelectors = [
+    // Common class-based patterns
+    '[class*="swatch"]',
+    '[class*="color-option"]',
+    '[class*="variant-option"]',
+    '[class*="color-selector"]',
+    '[data-color]',
+
+    // Data-testid patterns (Aritzia and modern sites)
+    '[data-testid*="swatch"]',
+    '[data-testid*="color"]',
+
+    // Button/link patterns
+    'button[class*="color"]',
+    'a[class*="color"]',
+
+    // Small elements with background colors (likely swatches)
+    // We'll check these programmatically below
+  ];
+
+  // Check each selector
+  for (const selector of swatchSelectors) {
+    try {
+      const found = element.querySelectorAll(selector);
+      if (found.length > 0) {
+        console.log('[Swatch Priority] Found', found.length, 'potential swatches with selector:', selector);
+        return true;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  // Check for small elements with background colors/images (generic swatch detection)
+  const allElements = element.querySelectorAll('*');
+  let smallColoredElements = 0;
+
+  for (const el of allElements) {
+    // Must be small (likely a swatch, not a product image)
+    if (el.offsetWidth < 20 || el.offsetWidth > 100) continue;
+    if (el.offsetHeight < 20 || el.offsetHeight > 100) continue;
+
+    // Must have a background color or image
+    const style = getComputedStyle(el);
+    const hasBg = (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent') ||
+                  (style.backgroundImage && style.backgroundImage !== 'none');
+
+    if (hasBg) {
+      smallColoredElements++;
+      if (smallColoredElements >= 2) {
+        console.log('[Swatch Priority] Found', smallColoredElements, 'small colored elements (likely swatches)');
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if element is a semantic product boundary (product tile, product card, etc.)
+ * @param {Element} element - Element to check
+ * @returns {boolean} - True if semantic product boundary
+ */
+function isSemanticProductBoundary(element) {
+  if (!element) return false;
+
+  // Check data attributes
+  if (element.hasAttribute('data-testid')) {
+    const testid = element.getAttribute('data-testid');
+    if (testid.includes('product')) return true;
+  }
+
+  if (element.hasAttribute('data-product-id') || element.hasAttribute('data-product')) {
+    return true;
+  }
+
+  // Check if it's an article element (common for product cards)
+  if (element.matches('article')) {
+    return true;
+  }
+
+  // Check class names for common patterns
+  const className = element.className;
+  if (typeof className === 'string') {
+    const productPatterns = [
+      /\bproduct-item\b/i,
+      /\bproduct-tile\b/i,
+      /\bproduct-card\b/i,
+      /\bproduct-grid-item\b/i,
+      /\bproductcard\b/i,
+      /\bproducttile\b/i
+    ];
+
+    for (const pattern of productPatterns) {
+      if (pattern.test(className)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Find the product container element that holds the image and swatches
+ * TWO-PHASE: First look for semantic boundaries, then fallback to swatch detection
  * @param {HTMLImageElement} img - Product image
  * @returns {Element|null} - Product container element
  */
 function findProductContainer(img) {
-  // Try common product container patterns
-  const containerSelectors = [
-    '[data-testid*="product-tile"]', // Aritzia and similar sites
-    '[data-testid*="plp-product"]', // Product listing page patterns
-    '[class*="product"]',
-    '[data-product-id]',
-    '[data-product]',
-    '[itemtype*="Product"]',
-    'article',
-    '[role="article"]',
-  ];
+  console.log('[Swatch Priority] ======================================');
+  console.log('[Swatch Priority] Finding product container for image:', img.src.substring(0, 80));
 
-  for (const selector of containerSelectors) {
-    const container = img.closest(selector);
-    if (container) return container;
-  }
-
-  // Fallback: use parent if no specific container found
-  // But limit scope to reasonable depth (max 5 levels up)
   let current = img.parentElement;
   let depth = 0;
-  while (current && depth < 5) {
-    // Stop at body or large containers
-    if (current === document.body || current.offsetWidth > window.innerWidth * 0.9) {
-      break;
-    }
-    // Look for swatch-like elements within this container
-    if (
-      current.querySelector('[class*="swatch"]') ||
-      current.querySelector('[class*="color"]') ||
-      current.querySelector('input[type="radio"]')
-    ) {
-      return current;
-    }
-    current = current.parentElement;
+  const maxDepth = 15;
+
+  // PHASE 1: Look for semantic product boundaries FIRST
+  console.log('[Swatch Priority] Phase 1: Checking for semantic product boundaries...');
+
+  while (current && depth < maxDepth) {
     depth++;
+    console.log(`[Swatch Priority] Checking level ${depth}:`, current.tagName, current.className?.substring(0, 50));
+
+    // Check if this is a semantic product boundary
+    const isSemantic = isSemanticProductBoundary(current);
+
+    if (isSemantic) {
+      console.log(`[Swatch Priority] Found semantic boundary at level ${depth}`);
+
+      // Check if this boundary has swatches
+      const hasSwatches = checkForSwatches(current);
+
+      if (hasSwatches) {
+        console.log(`[Swatch Priority] ✓ Semantic boundary HAS swatches - using as container:`, {
+          tagName: current.tagName,
+          className: current.className,
+          width: current.offsetWidth
+        });
+        return current;
+      } else {
+        console.log(`[Swatch Priority] Semantic boundary has NO swatches - continuing search...`);
+        // Continue walking up to find parent with swatches
+      }
+    }
+
+    current = current.parentElement;
   }
 
+  // PHASE 2: Fallback - find first parent with swatches (no semantic boundary found)
+  console.log('[Swatch Priority] Phase 2: No semantic boundary found, searching for swatches...');
+  current = img.parentElement;
+  depth = 0;
+
+  while (current && depth < maxDepth) {
+    depth++;
+    const hasSwatches = checkForSwatches(current);
+
+    if (hasSwatches) {
+      console.log(`[Swatch Priority] ✓ Found swatches at level ${depth} (fallback mode):`, {
+        tagName: current.tagName,
+        className: current.className
+      });
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  console.log('[Swatch Priority] ✗ No container found after checking', depth, 'levels');
+  // Final fallback
   return img.parentElement;
 }
 
 /**
  * Tier 1: Find selected swatch via checked radio input
  * @param {Element} container - Product container
+ * @param {HTMLImageElement} productImage - Product image for spatial validation
  * @returns {Element|null} - Selected swatch element
  */
-function findByRadioInput(container) {
+function findByRadioInput(container, productImage = null) {
   // Common radio input patterns for color selection
   const radioSelectors = [
     'input[type="radio"][name*="color"]:checked',
@@ -191,11 +335,62 @@ function findByRadioInput(container) {
 }
 
 /**
- * Tier 2: Find selected swatch via common CSS class names
+ * Validate swatch is spatially close to container
+ * Prevents selecting swatches from other products on listing pages
+ * @param {Element} swatch - Swatch element
  * @param {Element} container - Product container
+ * @param {HTMLImageElement} productImage - Optional product image for tighter validation
+ * @returns {boolean} - True if spatially valid
+ */
+function validateSwatchSpatialProximity(swatch, container, productImage = null) {
+  const swatchRect = swatch.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  // Basic check: swatch must be within container bounds (with small tolerance)
+  const tolerance = 50; // pixels
+  const isWithinContainer =
+    swatchRect.left >= containerRect.left - tolerance &&
+    swatchRect.right <= containerRect.right + tolerance &&
+    swatchRect.top >= containerRect.top - tolerance &&
+    swatchRect.bottom <= containerRect.bottom + tolerance;
+
+  console.log('[Swatch Priority] Spatial validation:', {
+    swatchRect: { left: Math.round(swatchRect.left), top: Math.round(swatchRect.top), width: Math.round(swatchRect.width) },
+    containerRect: { left: Math.round(containerRect.left), top: Math.round(containerRect.top), width: Math.round(containerRect.width) },
+    isWithinContainer
+  });
+
+  if (!isWithinContainer) {
+    console.log('[Swatch Priority] ✗ Swatch outside container bounds');
+    return false;
+  }
+
+  // If product image provided, do tighter validation
+  if (productImage) {
+    const imgRect = productImage.getBoundingClientRect();
+    const distance = calculateDistance(swatchRect, imgRect);
+
+    console.log('[Swatch Priority] Distance to product image:', Math.round(distance), 'px (max: 300px)');
+
+    // Swatch should be within 300px of product image
+    if (distance > 300) {
+      console.log('[Swatch Priority] ✗ Swatch too far from product image:', Math.round(distance), 'px');
+      return false;
+    }
+  }
+
+  console.log('[Swatch Priority] ✓ Spatial validation passed');
+  return true;
+}
+
+/**
+ * Tier 2: Find selected swatch via common CSS class names
+ * SIMPLIFIED: Just return first selected swatch found (container already scoped correctly)
+ * @param {Element} container - Product container
+ * @param {HTMLImageElement} productImage - Optional product image (unused in simplified version)
  * @returns {Element|null} - Selected swatch element
  */
-function findByCommonClasses(container) {
+function findByCommonClasses(container, productImage = null) {
   // Common class patterns for selected swatches
   const classSelectors = [
     // Exact matches (most specific)
@@ -223,6 +418,10 @@ function findByCommonClasses(container) {
   for (const selector of classSelectors) {
     try {
       const elements = container.querySelectorAll(selector);
+      if (elements.length > 0) {
+        console.log('[Swatch Priority Tier 2] Found', elements.length, 'elements for selector:', selector);
+      }
+
       for (const element of elements) {
         // Skip disabled/sold-out swatches
         if (
@@ -234,7 +433,8 @@ function findByCommonClasses(container) {
         }
 
         if (isValidSwatchElement(element)) {
-          return element;
+          console.log('[Swatch Priority Tier 2] ✓ Found valid selected swatch:', element);
+          return element; // Return first valid selected swatch
         }
       }
     } catch (e) {
@@ -243,6 +443,7 @@ function findByCommonClasses(container) {
     }
   }
 
+  console.log('[Swatch Priority Tier 2] No selected swatches found');
   return null;
 }
 
@@ -471,28 +672,53 @@ function findSwatchesByLayout(container, productImage) {
     const rowX = rowImages[0].x;
     const rowRight = rowImages[rowImages.length - 1].rect.right;
 
-    // Check if row is below product image (swatches typically below product)
-    const isBelow = rowY > productRect.bottom;
+    // IMPROVED: Multi-directional proximity check (not just below)
+    const directions = {
+      below: rowY > productRect.bottom,
+      above: rowY < productRect.top,
+      sameLevel: Math.abs(rowY - productRect.top) < 50,
+    };
 
-    // Check if row is within reasonable vertical distance (within 300px)
-    const verticalDistance = Math.abs(rowY - productRect.bottom);
-    const isNearby = verticalDistance < 300;
+    // Calculate distance in all directions
+    let verticalDistance;
+    let direction;
 
-    // Check if row has horizontal overlap with product (±100px tolerance)
+    if (directions.below) {
+      verticalDistance = rowY - productRect.bottom;
+      direction = 'below';
+    } else if (directions.above) {
+      verticalDistance = productRect.top - (rowY + avgHeight);
+      direction = 'above';
+    } else if (directions.sameLevel) {
+      verticalDistance = Math.abs(rowX - productRect.right);
+      direction = 'beside';
+    } else {
+      verticalDistance = Infinity;
+      direction = 'unknown';
+    }
+
+    // IMPROVED: Tighter proximity thresholds (scaled to product size)
+    const productHeight = productRect.height;
+    const maxDistance = Math.min(150, productHeight * 0.5); // Max 150px or 50% of product height
+    const isNearby = verticalDistance < maxDistance;
+
+    // IMPROVED: Tighter horizontal overlap (±50px instead of ±100px)
+    const tolerance = 50;
     const hasHorizontalOverlap =
-      (rowX >= productRect.left - 100 && rowX <= productRect.right + 100) ||
-      (rowRight >= productRect.left - 100 && rowRight <= productRect.right + 100) ||
+      (rowX >= productRect.left - tolerance && rowX <= productRect.right + tolerance) ||
+      (rowRight >= productRect.left - tolerance && rowRight <= productRect.right + tolerance) ||
       (rowX <= productRect.left && rowRight >= productRect.right);
 
-    if (isBelow && isNearby && hasHorizontalOverlap) {
-      console.log(`[Swatch Priority] ✓ Found valid swatch row: ${rowImages.length} images, ${Math.round(avgWidth)}x${Math.round(avgHeight)}px, distance=${Math.round(verticalDistance)}px`);
+    if (isNearby && hasHorizontalOverlap) {
+      console.log(`[Swatch Priority] ✓ Found valid swatch row (${direction}): ${rowImages.length} images, ${Math.round(avgWidth)}x${Math.round(avgHeight)}px, distance=${Math.round(verticalDistance)}px`);
       validRows.push({
         images: rowImages,
         distance: verticalDistance,
-        y: rowY
+        y: rowY,
+        direction: direction
       });
     } else {
-      console.log(`[Swatch Priority] Row at y=${y}: not near product (below=${isBelow}, nearby=${isNearby}, overlap=${hasHorizontalOverlap}, dist=${Math.round(verticalDistance)}px)`);
+      console.log(`[Swatch Priority] Row at y=${y}: not near product (${direction}, nearby=${isNearby}, overlap=${hasHorizontalOverlap}, dist=${Math.round(verticalDistance)}px)`);
     }
   }
 
@@ -1016,4 +1242,496 @@ function isNeutralColor(rgb) {
   if (saturation < 0.1) return true;
 
   return false;
+}
+
+// ==================== SPATIAL CLUSTERING HELPERS ====================
+// Advanced spatial analysis for accurate product-to-swatch matching
+
+/**
+ * Calculate bounding box for an array of elements
+ * @param {Array<HTMLElement>} elements - Elements to bound
+ * @returns {Object} - {left, right, top, bottom, width, height}
+ */
+function getBoundingBox(elements) {
+  if (!elements || elements.length === 0) {
+    return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+  }
+
+  let minLeft = Infinity;
+  let minTop = Infinity;
+  let maxRight = -Infinity;
+  let maxBottom = -Infinity;
+
+  elements.forEach((el) => {
+    const rect = el.getBoundingClientRect();
+    minLeft = Math.min(minLeft, rect.left);
+    minTop = Math.min(minTop, rect.top);
+    maxRight = Math.max(maxRight, rect.right);
+    maxBottom = Math.max(maxBottom, rect.bottom);
+  });
+
+  return {
+    left: minLeft,
+    right: maxRight,
+    top: minTop,
+    bottom: maxBottom,
+    width: maxRight - minLeft,
+    height: maxBottom - minTop,
+  };
+}
+
+/**
+ * Calculate distance between two bounding boxes
+ * @param {Object} rect1 - First bounding box
+ * @param {Object} rect2 - Second bounding box
+ * @returns {number} - Distance in pixels (0 if overlapping)
+ */
+function calculateDistance(rect1, rect2) {
+  // If rectangles overlap, distance is 0
+  const horizontalOverlap =
+    rect1.right >= rect2.left && rect1.left <= rect2.right;
+  const verticalOverlap =
+    rect1.bottom >= rect2.top && rect1.top <= rect2.bottom;
+
+  if (horizontalOverlap && verticalOverlap) {
+    return 0;
+  }
+
+  // Calculate horizontal distance
+  let horizontalDist = 0;
+  if (rect1.right < rect2.left) {
+    horizontalDist = rect2.left - rect1.right;
+  } else if (rect2.right < rect1.left) {
+    horizontalDist = rect1.left - rect2.right;
+  }
+
+  // Calculate vertical distance
+  let verticalDist = 0;
+  if (rect1.bottom < rect2.top) {
+    verticalDist = rect2.top - rect1.bottom;
+  } else if (rect2.bottom < rect1.top) {
+    verticalDist = rect1.top - rect2.bottom;
+  }
+
+  // Return Euclidean distance
+  return Math.sqrt(horizontalDist ** 2 + verticalDist ** 2);
+}
+
+/**
+ * Group nearby elements into clusters based on spatial proximity
+ * @param {Array<HTMLElement>} allElements - All elements to cluster
+ * @param {number} maxDistance - Maximum distance to be in same cluster (pixels)
+ * @returns {Array<Object>} - Array of clusters {elements, boundingBox}
+ */
+function findElementClusters(allElements, maxDistance = 150) {
+  const clusters = [];
+
+  allElements.forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    let addedToCluster = false;
+
+    // Try to add to existing cluster
+    for (const cluster of clusters) {
+      const distance = calculateDistance(cluster.boundingBox, rect);
+
+      if (distance <= maxDistance) {
+        cluster.elements.push(element);
+
+        // Expand bounding box
+        cluster.boundingBox = getBoundingBox(cluster.elements);
+        addedToCluster = true;
+        break;
+      }
+    }
+
+    // Create new cluster if not added
+    if (!addedToCluster) {
+      clusters.push({
+        elements: [element],
+        boundingBox: rect,
+      });
+    }
+  });
+
+  return clusters;
+}
+
+/**
+ * Detect grid pattern in product layout
+ * @param {Array<HTMLElement>} productImages - All product images on page
+ * @returns {Object|null} - {columns, rows, spacing} or null
+ */
+function detectGridPattern(productImages) {
+  if (productImages.length < 4) {
+    return null; // Need at least 4 products to detect grid
+  }
+
+  // Get Y coordinates and group into rows
+  const rows = new Map(); // y-coordinate -> [images]
+  const tolerance = 20; // pixels
+
+  productImages.forEach((img) => {
+    const rect = img.getBoundingClientRect();
+    const y = Math.round(rect.top / tolerance) * tolerance; // Round to tolerance
+
+    if (!rows.has(y)) {
+      rows.set(y, []);
+    }
+    rows.get(y).push(img);
+  });
+
+  // Find most common row size (number of columns)
+  const rowSizes = Array.from(rows.values()).map((row) => row.length);
+  const columnCount = Math.max(...rowSizes);
+
+  if (columnCount < 2) {
+    return null; // Not a grid layout
+  }
+
+  // Calculate average spacing
+  const spacings = [];
+  rows.forEach((rowImages) => {
+    if (rowImages.length >= 2) {
+      rowImages.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+
+      for (let i = 0; i < rowImages.length - 1; i++) {
+        const rect1 = rowImages[i].getBoundingClientRect();
+        const rect2 = rowImages[i + 1].getBoundingClientRect();
+        spacings.push(rect2.left - rect1.right);
+      }
+    }
+  });
+
+  const avgSpacing = spacings.length > 0
+    ? spacings.reduce((a, b) => a + b, 0) / spacings.length
+    : 0;
+
+  return {
+    columns: columnCount,
+    rows: rows.size,
+    spacing: avgSpacing,
+  };
+}
+
+/**
+ * Find the cluster containing a specific image
+ * @param {HTMLElement} img - Target image
+ * @param {Array<Object>} clusters - Array of clusters
+ * @returns {Object|null} - Cluster containing image, or null
+ */
+function findClosestCluster(img, clusters) {
+  const imgRect = img.getBoundingClientRect();
+
+  // First, check if image is in any cluster
+  for (const cluster of clusters) {
+    if (cluster.elements.includes(img)) {
+      return cluster;
+    }
+  }
+
+  // If not in any cluster, find nearest one
+  let closestCluster = null;
+  let minDistance = Infinity;
+
+  clusters.forEach((cluster) => {
+    const distance = calculateDistance(imgRect, cluster.boundingBox);
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestCluster = cluster;
+    }
+  });
+
+  return closestCluster;
+}
+
+/**
+ * Validate that a cluster has expected product structure
+ * @param {Object} cluster - Cluster to validate
+ * @returns {boolean} - True if valid product cluster
+ */
+function validateProductCluster(cluster) {
+  if (!cluster || !cluster.elements || cluster.elements.length === 0) {
+    return false;
+  }
+
+  // Count product images (large images)
+  const largeImages = cluster.elements.filter((el) => {
+    if (el.tagName !== 'IMG') return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width >= 100 && rect.height >= 100;
+  });
+
+  // Should have exactly 1 main product image
+  if (largeImages.length !== 1) {
+    return false;
+  }
+
+  // Should have some other elements (swatches, text, etc.)
+  if (cluster.elements.length < 2) {
+    return false;
+  }
+
+  // Cluster shouldn't be too large (spanning multiple products)
+  if (cluster.boundingBox.width > window.innerWidth * 0.6) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Find product cluster for a specific image using spatial analysis
+ * @param {HTMLElement} img - Product image
+ * @returns {Object|null} - {container, cluster} or null
+ */
+function findProductClusterForImage(img) {
+  // Find all potential product elements nearby
+  const searchRadius = 400; // pixels
+  const imgRect = img.getBoundingClientRect();
+
+  const allElements = Array.from(document.querySelectorAll('*')).filter((el) => {
+    if (el === img) return true; // Include the image itself
+
+    const rect = el.getBoundingClientRect();
+
+    // Skip invisible or tiny elements
+    if (rect.width < 10 || rect.height < 10) return false;
+    if (!el.offsetParent) return false;
+
+    // Check if within search radius
+    const distance = calculateDistance(imgRect, rect);
+    if (distance > searchRadius) return false;
+
+    // Include potential product elements
+    const classList = (el.className || '').toLowerCase();
+    const isRelevant =
+      el.tagName === 'IMG' ||
+      classList.includes('swatch') ||
+      classList.includes('color') ||
+      classList.includes('price') ||
+      classList.includes('title') ||
+      classList.includes('name') ||
+      el.tagName === 'BUTTON' ||
+      el.tagName === 'A';
+
+    return isRelevant;
+  });
+
+  // Cluster nearby elements
+  const clusters = findElementClusters(allElements, 150);
+
+  // Find cluster containing our image
+  const cluster = findClosestCluster(img, clusters);
+
+  if (!cluster || !validateProductCluster(cluster)) {
+    return null;
+  }
+
+  // Find minimal container that wraps all elements in cluster
+  const container = findMinimalContainer(cluster.elements);
+
+  return {
+    container: container,
+    cluster: cluster,
+  };
+}
+
+/**
+ * Find the minimal DOM container that wraps all elements
+ * @param {Array<HTMLElement>} elements - Elements to wrap
+ * @returns {HTMLElement} - Minimal container
+ */
+function findMinimalContainer(elements) {
+  if (elements.length === 0) return document.body;
+  if (elements.length === 1) return elements[0].parentElement || document.body;
+
+  // Find common ancestor
+  let commonAncestor = elements[0];
+
+  elements.forEach((el) => {
+    commonAncestor = findCommonAncestor(commonAncestor, el);
+  });
+
+  // Walk down to find tightest container
+  let current = commonAncestor;
+  while (current && current.children.length === 1) {
+    current = current.children[0];
+
+    // Check if this child still contains all elements
+    const containsAll = elements.every((el) => current.contains(el));
+    if (!containsAll) {
+      break;
+    }
+    commonAncestor = current;
+  }
+
+  return commonAncestor;
+}
+
+/**
+ * Find common ancestor of two elements
+ * @param {HTMLElement} el1 - First element
+ * @param {HTMLElement} el2 - Second element
+ * @returns {HTMLElement} - Common ancestor
+ */
+function findCommonAncestor(el1, el2) {
+  const ancestors1 = getAncestors(el1);
+  let current = el2;
+
+  while (current) {
+    if (ancestors1.includes(current)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+
+  return document.body;
+}
+
+/**
+ * Get all ancestors of an element
+ * @param {HTMLElement} el - Element
+ * @returns {Array<HTMLElement>} - Ancestors
+ */
+function getAncestors(el) {
+  const ancestors = [];
+  let current = el;
+
+  while (current && current !== document.body) {
+    ancestors.push(current);
+    current = current.parentElement;
+  }
+
+  ancestors.push(document.body);
+  return ancestors;
+}
+
+/**
+ * Validate container size is appropriate for single product
+ * @param {HTMLElement} container - Container to validate
+ * @param {HTMLElement} img - Product image (for reference)
+ * @returns {boolean} - True if size is reasonable
+ */
+function validateContainerSize(container, img) {
+  const containerRect = container.getBoundingClientRect();
+  const imgRect = img.getBoundingClientRect();
+
+  // Container shouldn't be too wide (likely spanning multiple products)
+  if (containerRect.width > window.innerWidth * 0.6) {
+    return false;
+  }
+
+  // Container should be at least as large as the image
+  if (containerRect.width < imgRect.width || containerRect.height < imgRect.height) {
+    return false;
+  }
+
+  // Container shouldn't be massively larger than image (sanity check)
+  const widthRatio = containerRect.width / imgRect.width;
+  const heightRatio = containerRect.height / imgRect.height;
+
+  if (widthRatio > 5 || heightRatio > 5) {
+    return false;
+  }
+
+  // Check if container has multiple large product images (bad sign)
+  const largeImages = Array.from(container.querySelectorAll('img')).filter((otherImg) => {
+    if (otherImg === img) return false; // Exclude our target image
+    const rect = otherImg.getBoundingClientRect();
+    return rect.width >= 100 && rect.height >= 100;
+  });
+
+  if (largeImages.length > 3) {
+    // More than 3 other large images suggests container spans multiple products
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Find container by careful DOM traversal with strict validation
+ * @param {HTMLElement} img - Product image
+ * @returns {HTMLElement} - Container element
+ */
+function findContainerByTraversal(img) {
+  let current = img.parentElement;
+  let depth = 0;
+  const maxDepth = 8;
+
+  while (current && depth < maxDepth) {
+    // Stop at body
+    if (current === document.body) {
+      break;
+    }
+
+    // Check if this level has swatches
+    const hasSwatches =
+      current.querySelector('[class*="swatch"]') ||
+      current.querySelector('[class*="color-option"]') ||
+      current.querySelector('input[type="radio"][name*="color"]');
+
+    if (hasSwatches) {
+      // Validate this container doesn't span multiple products
+      const largeImages = Array.from(current.querySelectorAll('img')).filter((otherImg) => {
+        if (otherImg === img) return false;
+        const rect = otherImg.getBoundingClientRect();
+        return rect.width >= 100 && rect.height >= 100;
+      });
+
+      // If no other large images, this is probably the right container
+      if (largeImages.length === 0) {
+        return current;
+      }
+
+      // If other large images exist, check if they're spatially far away
+      const imgRect = img.getBoundingClientRect();
+      const farAway = largeImages.every((otherImg) => {
+        const otherRect = otherImg.getBoundingClientRect();
+        const distance = calculateDistance(imgRect, otherRect);
+        return distance > 200; // Far enough to be different products
+      });
+
+      if (farAway) {
+        return current;
+      }
+    }
+
+    current = current.parentElement;
+    depth++;
+  }
+
+  // Fallback: return image's immediate parent
+  return img.parentElement || img.closest('[class*="product"]') || document.body;
+}
+
+// ==================== EXPORTS ====================
+// Export functions for use by other modules (swatch-detector.js, content.js)
+
+if (typeof window !== 'undefined') {
+  // Main API functions
+  window.findSelectedSwatchForImage = findSelectedSwatchForImage;
+  window.extractSwatchColor = extractSwatchColor;
+  window.applySwatchPriorityWeighting = applySwatchPriorityWeighting;
+
+  // Helper functions
+  window.findProductContainer = findProductContainer;
+  window.findSwatchesByLayout = findSwatchesByLayout;
+  window.watchSwatchChanges = watchSwatchChanges;
+
+  // Tier detection functions
+  window.findByRadioInput = findByRadioInput;
+  window.findByCommonClasses = findByCommonClasses;
+  window.findByAriaAttributes = findByAriaAttributes;
+  window.findByDataAttributes = findByDataAttributes;
+  window.findByVisualStyles = findByVisualStyles;
+
+  // Utility functions
+  window.parseColorString = parseColorString;
+  window.rgbToHex = rgbToHex;
+  window.hexToRgb = hexToRgb;
+  window.isNeutralColor = isNeutralColor;
+  window.isValidSwatchElement = isValidSwatchElement;
+
+  console.log('[Season Color Checker] Swatch Priority functions exported to window');
 }

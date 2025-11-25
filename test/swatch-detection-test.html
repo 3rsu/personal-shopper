@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swatch Detection API Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    h1, h2 {
+      color: #333;
+    }
+
+    .product-container {
+      background: white;
+      padding: 30px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .product-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .swatches-container {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #ddd;
+      transition: all 0.2s;
+    }
+
+    .swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .swatch.active {
+      border: 3px solid #333;
+      box-shadow: 0 0 0 2px white, 0 0 0 4px #333;
+    }
+
+    .swatch.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .pattern-swatch {
+      background-size: cover;
+      background-position: center;
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    #results {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 4px;
+      margin-top: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .test-section {
+      margin: 40px 0;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+    }
+
+    .instructions {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .instructions code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Swatch Detection API Test Page</h1>
+
+  <div class="instructions">
+    <strong>Instructions:</strong>
+    <ol>
+      <li>Load this page in a browser with the Season Color Checker extension installed</li>
+      <li>Click the "Detect Swatches" buttons below to test each scenario</li>
+      <li>Or open the console and run: <code>window.getSwatchesAsJSON(document.body)</code></li>
+    </ol>
+  </div>
+
+  <!-- Test Case 1: Standard Color Swatches -->
+  <div class="test-section">
+    <h2>Test Case 1: Standard Color Swatches (CSS Classes)</h2>
+    <div class="product-container" id="product-1">
+      <div class="product-title">Classic Cotton T-Shirt</div>
+      <p>Available in 5 colors</p>
+
+      <div class="swatches-container">
+        <div class="swatch active" style="background-color: #000080;" title="Navy Blue" data-color="#000080"></div>
+        <div class="swatch" style="background-color: #FFFFFF; border-color: #ccc;" title="White" data-color="#FFFFFF"></div>
+        <div class="swatch" style="background-color: #DC143C;" title="Crimson" data-color="#DC143C"></div>
+        <div class="swatch disabled" style="background-color: #228B22;" title="Forest Green (Sold Out)" data-color="#228B22"></div>
+        <div class="swatch" style="background-color: #FFD700;" title="Gold" data-color="#FFD700"></div>
+      </div>
+
+      <button onclick="testProduct('product-1')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Test Case 2: Radio Input Swatches (Shopify Style) -->
+  <div class="test-section">
+    <h2>Test Case 2: Radio Input Swatches (Shopify Pattern)</h2>
+    <div class="product-container" id="product-2">
+      <div class="product-title">Premium Wool Sweater</div>
+      <p>Select your color:</p>
+
+      <div class="swatches-container">
+        <label>
+          <input type="radio" name="color-2" value="burgundy" checked style="display:none;">
+          <div class="swatch" style="background-color: #800020;" title="Burgundy"></div>
+        </label>
+        <label>
+          <input type="radio" name="color-2" value="charcoal" style="display:none;">
+          <div class="swatch" style="background-color: #36454F;" title="Charcoal"></div>
+        </label>
+        <label>
+          <input type="radio" name="color-2" value="camel" style="display:none;">
+          <div class="swatch" style="background-color: #C19A6B;" title="Camel"></div>
+        </label>
+      </div>
+
+      <button onclick="testProduct('product-2')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Test Case 3: ARIA Attributes -->
+  <div class="test-section">
+    <h2>Test Case 3: ARIA Attributes (Accessibility)</h2>
+    <div class="product-container" id="product-3">
+      <div class="product-title">Silk Blouse</div>
+
+      <div class="swatches-container" role="listbox">
+        <div class="swatch" role="option" aria-selected="true" style="background-color: #FF1493;" aria-label="Deep Pink"></div>
+        <div class="swatch" role="option" aria-selected="false" style="background-color: #E6E6FA;" aria-label="Lavender"></div>
+        <div class="swatch" role="option" aria-selected="false" style="background-color: #00CED1;" aria-label="Dark Turquoise"></div>
+      </div>
+
+      <button onclick="testProduct('product-3')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Test Case 4: Text-Only Swatches -->
+  <div class="test-section">
+    <h2>Test Case 4: Text-Only Color Names</h2>
+    <div class="product-container" id="product-4">
+      <div class="product-title">Designer Dress</div>
+
+      <div class="swatches-container">
+        <button class="swatch active" aria-label="Navy Blue" title="Navy Blue" style="width: auto; padding: 8px 16px; border-radius: 4px;">Navy Blue</button>
+        <button class="swatch" aria-label="Emerald" title="Emerald" style="width: auto; padding: 8px 16px; border-radius: 4px;">Emerald</button>
+        <button class="swatch" aria-label="Ruby" title="Ruby" style="width: auto; padding: 8px 16px; border-radius: 4px;">Ruby</button>
+      </div>
+
+      <button onclick="testProduct('product-4')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Test Case 5: Pattern Swatches -->
+  <div class="test-section">
+    <h2>Test Case 5: Pattern/Texture Swatches</h2>
+    <div class="product-container" id="product-5">
+      <div class="product-title">Patterned Scarf</div>
+
+      <div class="swatches-container">
+        <div class="swatch pattern-swatch active"
+             style="background-image: linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%), linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; background-color: #fff;"
+             title="Checkered" aria-label="Checkered Pattern"></div>
+        <div class="swatch" style="background-color: #0000FF;" title="Solid Blue"></div>
+        <div class="swatch pattern-swatch"
+             style="background-image: repeating-linear-gradient(0deg, #FF0000, #FF0000 5px, #FFF 5px, #FFF 10px);"
+             title="Striped" aria-label="Red Striped"></div>
+      </div>
+
+      <button onclick="testProduct('product-5')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Test Case 6: Data Attributes -->
+  <div class="test-section">
+    <h2>Test Case 6: Data Attributes</h2>
+    <div class="product-container" id="product-6">
+      <div class="product-title">Athletic Shorts</div>
+
+      <div class="swatches-container">
+        <div class="swatch"
+             data-selected="true"
+             data-color="#000000"
+             data-variant-name="Black"
+             style="background-color: #000000;"></div>
+        <div class="swatch"
+             data-color="#FF4500"
+             data-variant-name="Orange Red"
+             style="background-color: #FF4500;"></div>
+        <div class="swatch"
+             data-color="#32CD32"
+             data-variant-name="Lime Green"
+             style="background-color: #32CD32;"></div>
+      </div>
+
+      <button onclick="testProduct('product-6')">Detect Swatches</button>
+    </div>
+  </div>
+
+  <!-- Results Display -->
+  <div class="test-section">
+    <h2>Results</h2>
+    <button onclick="testAllProducts()">Test All Products</button>
+    <button onclick="clearResults()">Clear Results</button>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    function testProduct(productId) {
+      const container = document.getElementById(productId);
+
+      // Check if swatch detector is loaded
+      if (typeof window.getSwatchesAsJSON !== 'function') {
+        showError('Swatch Detector not loaded. Please install the Season Color Checker extension.');
+        return;
+      }
+
+      const result = window.getSwatchesAsJSON(container, {
+        includeDisabled: true,
+        includePatterns: true,
+        minConfidence: 0.3,
+      });
+
+      displayResults(productId, result);
+    }
+
+    function testAllProducts() {
+      clearResults();
+      for (let i = 1; i <= 6; i++) {
+        testProduct(`product-${i}`);
+      }
+    }
+
+    function displayResults(productId, result) {
+      const resultsDiv = document.getElementById('results');
+
+      let output = `\n=== ${productId.toUpperCase()} RESULTS ===\n\n`;
+      output += `Total Swatches: ${result.totalCount}\n`;
+      output += `Selected Index: ${result.selectedIndex}\n\n`;
+
+      if (result.swatches.length > 0) {
+        output += 'Swatches:\n';
+        result.swatches.forEach((swatch, index) => {
+          output += `\n${index + 1}. ${swatch.selected ? '✓ ' : '  '}`;
+          output += `Color: ${swatch.color || 'N/A'} | `;
+          output += `Label: ${swatch.label || 'N/A'} | `;
+          output += `Confidence: ${(swatch.confidence * 100).toFixed(0)}% | `;
+          output += `Source: ${swatch.source} | `;
+          output += `Pattern: ${swatch.isPattern ? 'Yes' : 'No'} | `;
+          output += `Disabled: ${swatch.isDisabled ? 'Yes' : 'No'}`;
+        });
+      }
+
+      if (result.errors.length > 0) {
+        output += '\n\nErrors:\n';
+        result.errors.forEach(error => {
+          output += `- ${error.type}: ${error.message}\n`;
+        });
+      }
+
+      output += '\n' + '='.repeat(60) + '\n';
+
+      resultsDiv.textContent += output;
+    }
+
+    function showError(message) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.textContent = `ERROR: ${message}\n\n`;
+      resultsDiv.style.background = '#ffebee';
+      resultsDiv.style.color = '#c62828';
+    }
+
+    function clearResults() {
+      document.getElementById('results').textContent = '';
+      document.getElementById('results').style.background = '#f9f9f9';
+      document.getElementById('results').style.color = 'inherit';
+    }
+
+    // Log instructions to console
+    console.log('%c🎨 Swatch Detection API Test Page', 'font-size: 20px; font-weight: bold; color: #4CAF50;');
+    console.log('%cTo test the API, run:', 'font-size: 14px;');
+    console.log('  window.getSwatchesAsJSON(document.body)');
+    console.log('\nOr click the "Detect Swatches" buttons on the page.');
+  </script>
+</body>
+</html>

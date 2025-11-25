@@ -23,6 +23,7 @@
         "background/text-color-extractor.js",
         "background/text-color-weighting.js",
         "background/swatch-priority.js",
+        "content/swatch-detector.js",
         "dist/set-webpack-path.js",
         "dist/background-removal-bundle.js",
         "background/background-remover.js",
