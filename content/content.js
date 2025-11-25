@@ -572,11 +572,11 @@
   }
 
   /**
-   * Extract center region of image, removing border percentages
+   * Extract center region of image using static crop (fallback method)
    * @param {HTMLImageElement|HTMLCanvasElement} img - Image to crop
    * @returns {HTMLCanvasElement|null} - Cropped canvas focused on center product
    */
-  function extractCenterRegion(img) {
+  function extractCenterRegionStatic(img) {
     try {
       const width = img.offsetWidth || img.width;
       const height = img.offsetHeight || img.height;
@@ -617,6 +617,62 @@
     } catch (e) {
       console.error('[Season Color Checker] Error extracting center region:', e);
       return null;
+    }
+  }
+
+  /**
+   * Extract center region using smartcrop.js for content-aware cropping
+   * Falls back to static crop if smartcrop fails
+   * @param {HTMLImageElement|HTMLCanvasElement} img - Image to crop
+   * @returns {Promise<HTMLCanvasElement|null>} - Cropped canvas focused on important content
+   */
+  async function extractCenterRegion(img) {
+    try {
+      const width = img.offsetWidth || img.width;
+      const height = img.offsetHeight || img.height;
+
+      // Calculate target crop dimensions for upper body focus
+      // Target: ~50% of width, ~60% of height (upper portion)
+      const targetWidth = Math.floor(width * 0.5);
+      const targetHeight = Math.floor(height * 0.6);
+
+      // Use smartcrop to find best crop for upper garment
+      const result = await smartcrop.crop(img, {
+        width: targetWidth,
+        height: targetHeight,
+        minScale: 0.8, // Allow slight downscaling if needed
+        ruleOfThirds: true, // Better composition
+      });
+
+      const crop = result.topCrop;
+
+      // Create canvas with cropped dimensions
+      const canvas = document.createElement('canvas');
+      canvas.width = crop.width;
+      canvas.height = crop.height;
+      const ctx = canvas.getContext('2d');
+
+      // Draw smartcrop-selected region
+      ctx.drawImage(
+        img,
+        crop.x,
+        crop.y,
+        crop.width,
+        crop.height, // Source: smartcrop-selected region
+        0,
+        0,
+        crop.width,
+        crop.height, // Dest: fill canvas
+      );
+      console.log('Smart Crop Successful', crop);
+
+      return canvas;
+    } catch (e) {
+      console.log('Smart Crop Failed', e);
+      console.error('[Season Color Checker] Error with smartcrop, falling back to static crop:', e);
+
+      // FALLBACK: Use original static crop logic
+      return extractCenterRegionStatic(img);
     }
   }
 
@@ -941,9 +997,9 @@
           }
         }
 
-        // Step 2: Extract center region (remove 20% L/R, 15% top, 10% bottom)
+        // Step 2: Extract center region using smartcrop.js for content-aware cropping
         let imageToAnalyze = processableImage;
-        const centerCanvas = extractCenterRegion(processableImage);
+        const centerCanvas = await extractCenterRegion(processableImage);
         if (centerCanvas) {
           console.log('[Season Color Checker] Extracted center region for analysis');
           imageToAnalyze = centerCanvas;
@@ -1292,7 +1348,9 @@
       // Add to container
       container.appendChild(paletteContainer);
       console.log(
-        `[Season Color Checker] ✅ Swatches added to image (visible: ${document.body.classList.contains('show-swatches')})`,
+        `[Season Color Checker] ✅ Swatches added to image (visible: ${document.body.classList.contains(
+          'show-swatches',
+        )})`,
       );
     } catch (error) {
       console.error('[Season Color Checker] ❌ Error creating color palette swatch:', error);

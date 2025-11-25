@@ -17,6 +17,7 @@
       "matches": ["*://*/*"],
       "js": [
         "libs/color-thief.min.js",
+        "libs/smartcrop.min.js",
         "data/seasonal-palettes.js",
         "data/fashion-color-dictionary.js",
         "background/color-processor.js",
