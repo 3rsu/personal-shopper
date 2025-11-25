@@ -172,29 +172,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // Toggle filter on/off
-  if (request.action === 'toggleFilter') {
-    // If enabled parameter is provided, use it; otherwise toggle
-    const newState = request.enabled !== undefined ? request.enabled : !storageCache.filterEnabled;
-    chrome.storage.sync.set({ filterEnabled: newState }, () => {
-      storageCache.filterEnabled = newState;
-
-      // Notify active tab (query needed because sender.tab is undefined for popup messages)
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'filterToggled',
-            enabled: newState
-          }).catch(() => {
-            // Ignore errors for tabs without content script
-          });
-        }
-      });
-
-      sendResponse({ success: true, enabled: newState });
-    });
-    return true;
-  }
+  // toggleFilter handler removed - components now update storage directly
+  // Storage listeners handle synchronization across all components
 
   // Add item to wishlist
   if (request.action === 'addToWishlist') {

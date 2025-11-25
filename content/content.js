@@ -105,28 +105,31 @@
 
     // Listen for messages from background/popup
     chrome.runtime.onMessage.addListener(handleMessage);
+
+    // Listen for storage changes (replaces message-based sync)
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'sync') {
+        if (changes.selectedSeason) {
+          settings.selectedSeason = changes.selectedSeason.newValue;
+          resetAndRefilter();
+        }
+
+        if (changes.filterEnabled) {
+          settings.filterEnabled = changes.filterEnabled.newValue;
+          if (changes.filterEnabled.newValue) {
+            resetAndRefilter();
+          } else {
+            removeAllFilters();
+          }
+        }
+      }
+    });
   }
 
   /**
    * Handle messages from background script or popup
    */
   function handleMessage(request, sender, sendResponse) {
-    if (request.action === 'seasonChanged') {
-      settings.selectedSeason = request.season;
-      resetAndRefilter();
-      sendResponse({ success: true });
-    }
-
-    if (request.action === 'filterToggled') {
-      settings.filterEnabled = request.enabled;
-      if (request.enabled) {
-        resetAndRefilter();
-      } else {
-        removeAllFilters();
-      }
-      sendResponse({ success: true });
-    }
-
     if (request.action === 'toggleHighlights') {
       toggleHighlights(request.enabled);
       sendResponse({ success: true });

@@ -359,14 +359,9 @@
    * Toggle filter on/off
    */
   function toggleFilter(enabled) {
-    chrome.runtime.sendMessage({
-      action: 'toggleFilter',
-      enabled: enabled
-    }, (response) => {
-      if (response) {
-        currentSettings.filterEnabled = response.enabled;
-      }
-    });
+    // Update storage - all listeners will sync automatically
+    chrome.storage.sync.set({ filterEnabled: enabled });
+    currentSettings.filterEnabled = enabled;
   }
 
   /**
@@ -673,6 +668,17 @@
       loadColorHistory().then(() => {
         renderColorHistory();
       });
+    }
+  });
+
+  // Listen for storage changes to keep UI in sync
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.filterEnabled) {
+      currentSettings.filterEnabled = changes.filterEnabled.newValue;
+      const filterToggle = document.getElementById('filter-toggle');
+      if (filterToggle) {
+        filterToggle.checked = changes.filterEnabled.newValue;
+      }
     }
   });
 

@@ -262,6 +262,9 @@
     if (overlayElement) {
       overlayElement.style.display = 'none';
     }
+
+    // Update storage - all listeners will sync automatically
+    chrome.storage.sync.set({ filterEnabled: false });
   }
 
   /**
@@ -360,34 +363,39 @@
     }
   }
 
-  // Listen for color history updates
+  // Listen for storage changes
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.colorHistory) {
       loadLastPickedColor();
     }
-  });
 
-  // Listen for filter toggle messages from popup
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'filterToggled') {
-      if (message.enabled) {
-        showOverlay();
+    // Listen for filter enabled state changes
+    if (areaName === 'sync' && changes.filterEnabled) {
+      const enabled = changes.filterEnabled.newValue;
+
+      // Update overlay visibility
+      if (enabled) {
+        if (overlayElement) {
+          overlayElement.style.display = 'block';
+        }
       } else {
-        hideOverlay();
+        if (overlayElement) {
+          overlayElement.style.display = 'none';
+        }
       }
 
       // Update the internal highlight toggle to stay in sync
       if (overlayElement) {
         const toggle = overlayElement.querySelector('.highlight-toggle');
         if (toggle) {
-          toggle.checked = message.enabled;
-          highlightEnabled = message.enabled;
+          toggle.checked = enabled;
+          highlightEnabled = enabled;
         }
       }
 
-      // Also dispatch custom event for content.js to handle highlighting
+      // Dispatch custom event for content.js to handle highlighting
       document.dispatchEvent(new CustomEvent('seasonFilterToggleHighlights', {
-        detail: { enabled: message.enabled }
+        detail: { enabled: enabled }
       }));
     }
   });
