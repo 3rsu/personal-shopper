@@ -19,6 +19,12 @@
     maxTraversalDepth: 5
   };
 
+  // Ensure fashion color dictionary is loaded
+  if (typeof window.getAllColorNames !== 'function') {
+    console.error('[Text Color Extractor] Fashion color dictionary not loaded!');
+    console.error('[Text Color Extractor] Text-based color extraction will be disabled.');
+  }
+
   // Ambiguous color words that need context validation
   const AMBIGUOUS_COLORS = {
     'orange': ['juice', 'peel', 'fruit', 'county', 'brand'],
@@ -259,6 +265,12 @@
     }
 
     // Get all color names from dictionary
+    // Ensure dictionary is loaded before attempting to get color names
+    if (typeof window.getAllColorNames !== 'function') {
+      console.warn('[Text Color Extractor] Dictionary not available, cannot extract color keywords');
+      return [];
+    }
+
     const allColorNames = getAllColorNames();
 
     // Sort by length (longest first) to match multi-word colors first
@@ -371,7 +383,11 @@
     const deduped = [];
 
     for (const mention of sorted) {
-      const normalizedKeyword = normalizeColorName(mention.keyword);
+      // Ensure dictionary normalization is available
+      const normalizedKeyword = (typeof window.normalizeColorName === 'function')
+        ? normalizeColorName(mention.keyword)
+        : mention.keyword.toLowerCase().trim();
+
       if (!seen.has(normalizedKeyword)) {
         seen.add(normalizedKeyword);
         deduped.push(mention);

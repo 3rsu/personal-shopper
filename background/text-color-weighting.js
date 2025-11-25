@@ -19,10 +19,46 @@
   };
 
   // DeltaE threshold for color similarity (visual confirmation)
-  const DELTA_E_THRESHOLD = 20;
+  // Higher than season palette matching (20) to be more lenient with text-mentioned colors
+  // Real-world products often have color variation (e.g., "burgundy" can range from #800020 to #A03E5C)
+  const DELTA_E_THRESHOLD = 28;
 
   // DeltaE threshold for considering colors "different enough" to add
-  const DELTA_E_DIFFERENT_THRESHOLD = 25;
+  // Ensures text colors are visually distinct before adding to palette
+  const DELTA_E_DIFFERENT_THRESHOLD = 32;
+
+  /**
+   * Ensure fashion color dictionary is loaded
+   */
+  function ensureDictionaryLoaded() {
+    if (!window.normalizeColorName || !window.getColorHex || !window.getColorRgb) {
+      console.error('[Text Color Weighting] Fashion color dictionary not loaded!');
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Get color from dictionary with proper normalization and error handling
+   * @param {string} colorName - Color name to lookup
+   * @param {string} format - 'rgb' or 'hex'
+   * @returns {Array<number>|string|null} - RGB array, hex string, or null if not found
+   */
+  function getColorFromDictionary(colorName, format = 'rgb') {
+    if (!ensureDictionaryLoaded()) return null;
+
+    // Normalize the color name (handles grey/gray, multi-word colors, etc.)
+    const normalized = window.normalizeColorName(colorName);
+
+    // Get requested format
+    if (format === 'rgb') {
+      return window.getColorRgb(normalized);
+    } else if (format === 'hex') {
+      return window.getColorHex(normalized);
+    }
+
+    return null;
+  }
 
   /**
    * Apply text-based weighting to color palette
@@ -47,11 +83,11 @@
 
       // Check if this extracted color matches any text-mentioned colors
       for (const mention of textColorMentions) {
-        const mentionHex = getColorHex(mention.keyword);
-        if (!mentionHex) continue;
+        // Get RGB directly from dictionary (with normalization)
+        const mentionRgb = getColorFromDictionary(mention.keyword, 'rgb');
+        if (!mentionRgb) continue;
 
         // Calculate color similarity using deltaE
-        const mentionRgb = hexToRgbArray(mentionHex);
         const deltaE = calculateDeltaE(rgb, mentionRgb, colorProcessor);
 
         // If colors are similar (visual confirmation), boost weight
@@ -142,10 +178,9 @@
       // 2. Not already similar to existing colors
       if (mention.confidence < 0.7) continue;
 
-      const mentionHex = getColorHex(mention.keyword);
-      if (!mentionHex) continue;
-
-      const mentionRgb = hexToRgbArray(mentionHex);
+      // Get RGB directly from dictionary (with normalization)
+      const mentionRgb = getColorFromDictionary(mention.keyword, 'rgb');
+      if (!mentionRgb) continue;
 
       // Check if already represented in palette
       const alreadyExists = dominantColors.some(rgb => {
@@ -187,18 +222,6 @@
   }
 
   /**
-   * Convert hex string to RGB array
-   */
-  function hexToRgbArray(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ] : null;
-  }
-
-  /**
    * Reconcile conflicting color information
    * Trusts text colors that are visually confirmed by the palette
    */
@@ -206,7 +229,8 @@
     // If multiple text mentions from different sources conflict,
     // trust the one that's visually similar to extracted palette
     const visuallyConfirmedColors = colorMentions.filter(mention => {
-      const mentionRgb = getColorRgb(mention.keyword);
+      // Get RGB directly from dictionary (with normalization)
+      const mentionRgb = getColorFromDictionary(mention.keyword, 'rgb');
       if (!mentionRgb) return false;
 
       return extractedPalette.some(rgb => {

@@ -170,7 +170,7 @@ const CSS_COLORS = {
 // Fashion Industry Color Extensions
 const FASHION_COLORS = {
   // Reds - Fashion
-  'burgundy': '#800020',
+  'burgundy': '#923456',  // Updated: More typical burgundy, warmer and lighter than pure burgundy
   'wine': '#722F37',
   'brick': '#CB4154',
   'rust': '#B7410E',
@@ -178,6 +178,8 @@ const FASHION_COLORS = {
   'scarlet': '#FF2400',
   'ruby': '#E0115F',
   'garnet': '#733635',
+  'light burgundy': '#A03E5C',  // Variation: Lighter burgundy shade
+  'dark burgundy': '#5C1F2E',   // Variation: Darker burgundy shade
 
   // Blues - Fashion
   'cobalt': '#0047AB',
@@ -186,6 +188,9 @@ const FASHION_COLORS = {
   'denim': '#1560BD',
   'periwinkle': '#CCCCFF',
   'electric blue': '#7DF9FF',
+  'navy blue': '#001845',  // Variation: Slightly lighter navy for real-world products
+  'dark navy': '#000B1F',  // Variation: Very dark navy
+  'bright navy': '#0038A8', // Variation: Brighter navy shade
 
   // Greens - Fashion
   'emerald': '#50C878',
@@ -246,7 +251,7 @@ const FASHION_COLORS = {
 
 // Multi-word Color Patterns
 const MULTI_WORD_COLORS = {
-  'forest green': '#228B22',
+  'forest green': '#2D5016',  // Updated: Darker, more typical forest green
   'sky blue': '#87CEEB',
   'hot pink': '#FF69B4',
   'lime green': '#32CD32',

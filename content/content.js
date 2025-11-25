@@ -1046,17 +1046,23 @@
           settings.textColorEnhancementEnabled &&
           typeof extractColorKeywordsFromDOM === 'function'
         ) {
-          try {
-            textColorMentions = extractColorKeywordsFromDOM(img) || [];
-            if (textColorMentions.length > 0) {
-              console.log(
-                '[Season Color Checker] Found text color mentions (for background protection):',
-                textColorMentions.map((m) => m.keyword).join(', '),
-              );
+          // Verify dictionary is loaded before attempting text color extraction
+          if (typeof window.getAllColorNames !== 'function') {
+            console.warn('[Season Color Checker] Fashion dictionary not loaded, text enhancement disabled');
+            settings.textColorEnhancementEnabled = false;
+          } else {
+            try {
+              textColorMentions = extractColorKeywordsFromDOM(img) || [];
+              if (textColorMentions.length > 0) {
+                console.log(
+                  '[Season Color Checker] Found text color mentions (for background protection):',
+                  textColorMentions.map((m) => m.keyword).join(', '),
+                );
+              }
+            } catch (textError) {
+              console.log('[Season Color Checker] Text color extraction failed:', textError.message);
+              textColorMentions = [];
             }
-          } catch (textError) {
-            console.log('[Season Color Checker] Text color extraction failed:', textError.message);
-            textColorMentions = [];
           }
         }
 
