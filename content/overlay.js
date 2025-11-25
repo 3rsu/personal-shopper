@@ -35,6 +35,11 @@
 
     // Load last picked color from storage
     loadLastPickedColor();
+
+    // Set initial visibility based on filterEnabled setting
+    if (settings.filterEnabled === false) {
+      hideOverlay();
+    }
   };
 
   /**
@@ -260,6 +265,15 @@
   }
 
   /**
+   * Show overlay
+   */
+  function showOverlay() {
+    if (overlayElement) {
+      overlayElement.style.display = 'block';
+    }
+  }
+
+  /**
    * Activate eyedropper tool
    */
   function activateEyedropper() {
@@ -350,6 +364,31 @@
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.colorHistory) {
       loadLastPickedColor();
+    }
+  });
+
+  // Listen for filter toggle messages from popup
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'filterToggled') {
+      if (message.enabled) {
+        showOverlay();
+      } else {
+        hideOverlay();
+      }
+
+      // Update the internal highlight toggle to stay in sync
+      if (overlayElement) {
+        const toggle = overlayElement.querySelector('.highlight-toggle');
+        if (toggle) {
+          toggle.checked = message.enabled;
+          highlightEnabled = message.enabled;
+        }
+      }
+
+      // Also dispatch custom event for content.js to handle highlighting
+      document.dispatchEvent(new CustomEvent('seasonFilterToggleHighlights', {
+        detail: { enabled: message.enabled }
+      }));
     }
   });
 

@@ -179,13 +179,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.sync.set({ filterEnabled: newState }, () => {
       storageCache.filterEnabled = newState;
 
-      // Notify current tab
-      if (sender.tab) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          action: 'filterToggled',
-          enabled: newState
-        }).catch(() => {});
-      }
+      // Notify active tab (query needed because sender.tab is undefined for popup messages)
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs && tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'filterToggled',
+            enabled: newState
+          }).catch(() => {
+            // Ignore errors for tabs without content script
+          });
+        }
+      });
 
       sendResponse({ success: true, enabled: newState });
     });

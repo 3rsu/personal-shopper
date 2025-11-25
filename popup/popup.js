@@ -360,7 +360,8 @@
    */
   function toggleFilter(enabled) {
     chrome.runtime.sendMessage({
-      action: 'toggleFilter'
+      action: 'toggleFilter',
+      enabled: enabled
     }, (response) => {
       if (response) {
         currentSettings.filterEnabled = response.enabled;
