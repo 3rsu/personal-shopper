@@ -631,10 +631,9 @@
       const height = img.offsetHeight || img.height;
 
       // Calculate target crop dimensions for upper body focus
-      // Target: ~45% of width, ~55% of height (upper portion)
-      // Tightened from 50%×60% to reduce background exposure
-      const targetWidth = Math.floor(width * 0.45);
-      const targetHeight = Math.floor(height * 0.55);
+      // Target: ~50% of width, ~60% of height (upper portion)
+      const targetWidth = Math.floor(width * 0.5);
+      const targetHeight = Math.floor(height * 0.6);
 
       // Define garment boost region (chest/upper torso area)
       // const garmentBoost = {
@@ -1051,7 +1050,9 @@
         ) {
           // Verify dictionary is loaded before attempting text color extraction
           if (typeof window.getAllColorNames !== 'function') {
-            console.warn('[Season Color Checker] Fashion dictionary not loaded, text enhancement disabled');
+            console.warn(
+              '[Season Color Checker] Fashion dictionary not loaded, text enhancement disabled',
+            );
             settings.textColorEnhancementEnabled = false;
           } else {
             try {
@@ -1063,7 +1064,10 @@
                 );
               }
             } catch (textError) {
-              console.log('[Season Color Checker] Text color extraction failed:', textError.message);
+              console.log(
+                '[Season Color Checker] Text color extraction failed:',
+                textError.message,
+              );
               textColorMentions = [];
             }
           }
@@ -1193,9 +1197,221 @@
       if (matchResult.matches) {
         stats.matchingImages++;
       }
+
+      // After processing, check for hover pair siblings
+      detectAndLinkHoverPair(img);
     } catch (error) {
       console.error('Error processing image:', error);
     }
+  }
+
+  /**
+   * Detect if this image is part of a hover-swap pair
+   * Links sibling images that toggle visibility (opacity/display) on hover
+   */
+  function detectAndLinkHoverPair(img) {
+    // Skip if already linked
+    if (img.dataset.hoverGroup) {
+      return;
+    }
+
+    const parent = img.parentElement;
+    if (!parent) return;
+
+    // Find sibling images in the same parent
+    const siblingImages = Array.from(parent.querySelectorAll('img')).filter(sibling => {
+      // Must be product images (not tiny swatches/icons)
+      if (sibling.offsetWidth < 100 || sibling.offsetHeight < 100) return false;
+      // Must have been processed by our extension
+      if (!sibling.dataset.seasonMatch) return false;
+      return true;
+    });
+
+    // Only handle pairs (2-4 images, typical for hover swaps)
+    if (siblingImages.length < 2 || siblingImages.length > 4) {
+      return;
+    }
+
+    // Check if this looks like a hover-swap pattern
+    const hasVisibilityToggle = detectVisibilityTogglePattern(siblingImages);
+    if (!hasVisibilityToggle) {
+      return;
+    }
+
+    // Validate that siblings have similar color palettes (same product)
+    const areSimilar = validateColorSimilarity(siblingImages);
+    if (!areSimilar) {
+      return;
+    }
+
+    // Link siblings together with shared group ID
+    const groupId = `hover-group-${Date.now()}-${Math.random()}`;
+    siblingImages.forEach(sibling => {
+      sibling.dataset.hoverGroup = groupId;
+    });
+
+    // Determine shared match decision from visible image
+    const visibleImage = getVisibleImage(siblingImages);
+    const sharedDecision = {
+      matches: visibleImage.dataset.seasonMatch === 'true',
+      matchScore: parseFloat(visibleImage.dataset.matchScore) || 0
+    };
+
+    // Store shared decision on parent
+    parent.dataset.hoverGroupMatch = JSON.stringify(sharedDecision);
+
+    // Set up swatch update observer for hover changes
+    setupHoverSwatchObserver(parent, siblingImages);
+  }
+
+  /**
+   * Detect if siblings use visibility toggle pattern (opacity, display, etc.)
+   */
+  function detectVisibilityTogglePattern(images) {
+    const styles = images.map(img => window.getComputedStyle(img));
+
+    // Pattern 1: Opacity-based toggle (one hidden, one visible)
+    const opacities = styles.map(s => parseFloat(s.opacity));
+    const hasOpacityToggle = opacities.some(o => o < 0.3) && opacities.some(o => o > 0.7);
+
+    // Pattern 2: Absolute positioning with z-index stacking
+    const positions = styles.map(s => s.position);
+    const hasAbsoluteStacking = positions.every(p => p === 'absolute');
+
+    // Pattern 3: Parent has transition/animation classes (common hover pattern)
+    const parent = images[0].parentElement;
+    const parentClasses = parent.className.toLowerCase();
+    const hasHoverClasses = /hover|transition|swap|alternate|fade/.test(parentClasses);
+
+    return hasOpacityToggle || hasAbsoluteStacking || hasHoverClasses;
+  }
+
+  /**
+   * Get the currently visible image from a group
+   */
+  function getVisibleImage(images) {
+    // Find image with highest visibility (opacity, not display:none, etc.)
+    return images.reduce((mostVisible, img) => {
+      const style = window.getComputedStyle(img);
+      const opacity = parseFloat(style.opacity) || 0;
+      const display = style.display;
+      const visibility = style.visibility;
+
+      // Calculate visibility score
+      let score = opacity;
+      if (display === 'none') score = 0;
+      if (visibility === 'hidden') score = 0;
+
+      const currentStyle = window.getComputedStyle(mostVisible);
+      const currentOpacity = parseFloat(currentStyle.opacity) || 0;
+      let currentScore = currentOpacity;
+      if (currentStyle.display === 'none') currentScore = 0;
+      if (currentStyle.visibility === 'hidden') currentScore = 0;
+
+      return score > currentScore ? img : mostVisible;
+    });
+  }
+
+  /**
+   * Validate that sibling images have similar color palettes
+   */
+  function validateColorSimilarity(images) {
+    // Get dominant colors from each image
+    const palettes = images.map(img => {
+      try {
+        return JSON.parse(img.dataset.dominantColors || '[]');
+      } catch {
+        return [];
+      }
+    }).filter(p => p.length > 0);
+
+    if (palettes.length < 2) return false;
+
+    // Compare first two palettes (sufficient for validation)
+    const palette1 = palettes[0];
+    const palette2 = palettes[1];
+
+    // Check if at least 1 color from each palette is similar (Delta E < 20)
+    let similarCount = 0;
+    for (const color1 of palette1.slice(0, 3)) {
+      for (const color2 of palette2.slice(0, 3)) {
+        const deltaE = calculateColorDistance(color1, color2);
+        if (deltaE < 20) {
+          similarCount++;
+          break;
+        }
+      }
+    }
+
+    // Require at least 1 similar color (same garment, different angles/lighting)
+    return similarCount >= 1;
+  }
+
+  /**
+   * Calculate color distance between two hex colors using simple RGB distance
+   */
+  function calculateColorDistance(hex1, hex2) {
+    const rgb1 = hexToRgb(hex1);
+    const rgb2 = hexToRgb(hex2);
+
+    if (!rgb1 || !rgb2) return 100; // Max distance if invalid
+
+    // Simple Euclidean distance (good enough for validation)
+    const rDiff = rgb1.r - rgb2.r;
+    const gDiff = rgb1.g - rgb2.g;
+    const bDiff = rgb1.b - rgb2.b;
+
+    return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff) / 4.41; // Normalize to 0-100
+  }
+
+  /**
+   * Convert hex color to RGB
+   */
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  /**
+   * Set up observer to update swatches and badges when hover changes visibility
+   */
+  function setupHoverSwatchObserver(parent, images) {
+    // Observe style/class changes that might indicate hover state change
+    const observer = new MutationObserver(() => {
+      const visibleImage = getVisibleImage(images);
+
+      // Update which image shows the color swatches and badge
+      images.forEach(img => {
+        const swatchContainer = img.querySelector('.color-palette-swatch-container');
+        if (swatchContainer) {
+          // Show swatches only on the visible image
+          swatchContainer.style.display = (img === visibleImage) ? 'flex' : 'none';
+        }
+
+        // Get the container for badge placement
+        const container = img.closest('.season-filter-container') || img.parentElement;
+        const badge = container.querySelector('.season-badge');
+
+        if (badge) {
+          // Show badge only on visible image
+          badge.style.display = (img === visibleImage) ? 'block' : 'none';
+        }
+      });
+    });
+
+    // Watch for class and style changes on parent and images
+    observer.observe(parent, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+      subtree: true
+    });
+
+    // Store observer so we can disconnect later if needed
+    parent._hoverSwatchObserver = observer;
   }
 
   /**
@@ -1404,6 +1620,41 @@
       return;
     }
 
+    // Check if image is part of a hover group
+    const parent = img.parentElement;
+    let effectiveMatchResult = matchResult;
+
+    if (parent && parent.dataset.hoverGroupMatch) {
+      // Use shared decision from hover group
+      try {
+        const sharedDecision = JSON.parse(parent.dataset.hoverGroupMatch);
+        effectiveMatchResult = {
+          matches: sharedDecision.matches,
+          confidence: sharedDecision.matchScore
+        };
+      } catch (e) {
+        // Fall back to individual result if parsing fails
+        console.error('Error parsing hover group match:', e);
+      }
+    }
+
+    // Check if image is currently hidden (don't show badge on hidden hover images)
+    const style = window.getComputedStyle(img);
+    const isHidden = parseFloat(style.opacity) < 0.3 ||
+                     style.display === 'none' ||
+                     style.visibility === 'hidden';
+
+    if (isHidden && img.dataset.hoverGroup) {
+      // Skip badge for hidden images in hover groups
+      // The visible sibling will show the badge
+      return;
+    }
+
+    // Only show badge for matches
+    if (!effectiveMatchResult.matches) {
+      return;
+    }
+
     // Remove existing badge
     const existingBadge = container.querySelector('.season-badge');
     if (existingBadge) {
@@ -1413,14 +1664,9 @@
     const badge = document.createElement('div');
     badge.className = 'season-badge';
 
-    // Show checkmark or X based on match
-    if (matchResult.matches) {
-      badge.innerHTML = '✓';
-      badge.classList.add('match');
-    } else {
-      badge.innerHTML = '✗';
-      badge.classList.add('no-match');
-    }
+    // Show checkmark for matches only
+    badge.innerHTML = '✓';
+    badge.classList.add('match');
 
     container.appendChild(badge);
   }
@@ -1452,6 +1698,11 @@
       return;
     }
 
+    // Only show badge for matches
+    if (!matchResult.isMatch) {
+      return;
+    }
+
     // Remove existing badge
     const existingBadge = container.querySelector('.season-badge');
     if (existingBadge) {
@@ -1461,14 +1712,9 @@
     const badge = document.createElement('div');
     badge.className = 'season-badge swatch-only-badge';
 
-    // Simple checkmark or X
-    if (matchResult.isMatch) {
-      badge.innerHTML = '✓';
-      badge.classList.add('match');
-    } else {
-      badge.innerHTML = '✗';
-      badge.classList.add('no-match');
-    }
+    // Show checkmark for matches only
+    badge.innerHTML = '✓';
+    badge.classList.add('match');
 
     // Add "W" indicator badge to show this came from website swatch
     badge.title = `Website color (${swatchColor.source})`;
