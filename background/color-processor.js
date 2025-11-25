@@ -12,7 +12,7 @@
 
 class ColorProcessor {
   constructor() {
-    this.MATCH_THRESHOLD = 20;  // Delta E threshold for color matching
+    this.MATCH_THRESHOLD = 20; // Delta E threshold for color matching
   }
 
   /**
@@ -22,11 +22,13 @@ class ColorProcessor {
    */
   hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
   }
 
   /**
@@ -48,27 +50,27 @@ class ColorProcessor {
 
     // Convert to XYZ using D65 illuminant
     let x = (r * 0.4124564 + g * 0.3575761 + b * 0.1804375) * 100;
-    let y = (r * 0.2126729 + g * 0.7151522 + b * 0.0721750) * 100;
-    let z = (r * 0.0193339 + g * 0.1191920 + b * 0.9503041) * 100;
+    let y = (r * 0.2126729 + g * 0.7151522 + b * 0.072175) * 100;
+    let z = (r * 0.0193339 + g * 0.119192 + b * 0.9503041) * 100;
 
     // Step 2: XYZ to LAB
     // D65 reference white point
     const refX = 95.047;
-    const refY = 100.000;
+    const refY = 100.0;
     const refZ = 108.883;
 
     x = x / refX;
     y = y / refY;
     z = z / refZ;
 
-    x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x + 16/116);
-    y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y + 16/116);
-    z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z + 16/116);
+    x = x > 0.008856 ? Math.pow(x, 1 / 3) : 7.787 * x + 16 / 116;
+    y = y > 0.008856 ? Math.pow(y, 1 / 3) : 7.787 * y + 16 / 116;
+    z = z > 0.008856 ? Math.pow(z, 1 / 3) : 7.787 * z + 16 / 116;
 
     return {
-      l: (116 * y) - 16,
+      l: 116 * y - 16,
       a: 500 * (x - y),
-      b: 200 * (y - z)
+      b: 200 * (y - z),
     };
   }
 
@@ -122,7 +124,7 @@ class ColorProcessor {
     return {
       closestColor,
       deltaE: minDeltaE,
-      isMatch: minDeltaE < this.MATCH_THRESHOLD
+      isMatch: minDeltaE < this.MATCH_THRESHOLD,
     };
   }
 
@@ -144,8 +146,8 @@ class ColorProcessor {
     // SIMPLIFIED MATCHING LOGIC - Easy to adjust for future changes
     // ============================================================================
     // Configuration (change these values to tune matching behavior):
-    const COLORS_TO_CHECK = 2;  // How many dominant colors to analyze (default: 2)
-    const MATCH_THRESHOLD = 1;  // How many must match to consider item a match (default: 1)
+    const COLORS_TO_CHECK = 1; // How many dominant colors to analyze (default: 2)
+    const MATCH_THRESHOLD = 1; // How many must match to consider item a match (default: 1)
 
     // Examples of how to adjust:
     // - More strict: COLORS_TO_CHECK = 2, MATCH_THRESHOLD = 2 (both colors must match)
@@ -165,7 +167,7 @@ class ColorProcessor {
         extractedColor: hex,
         closestPaletteColor: match.closestColor,
         deltaE: match.deltaE,
-        isMatch: match.isMatch
+        isMatch: match.isMatch,
       });
 
       if (match.isMatch) {
@@ -182,7 +184,7 @@ class ColorProcessor {
       totalColors: colorsToCheck.length,
       details: results,
       confidence: (matchCount / colorsToCheck.length) * 100,
-      matchThreshold: MATCH_THRESHOLD // Include for debugging/display
+      matchThreshold: MATCH_THRESHOLD, // Include for debugging/display
     };
   }
 
@@ -198,7 +200,7 @@ class ColorProcessor {
         primarySeason: null,
         secondarySeasons: [],
         allScores: [],
-        noMatch: true
+        noMatch: true,
       };
     }
 
@@ -216,7 +218,7 @@ class ColorProcessor {
         matchCount: matchResult.matchCount,
         confidence: matchResult.confidence,
         details: matchResult.details,
-        matches: matchResult.matches
+        matches: matchResult.matches,
       });
     }
 
@@ -235,10 +237,10 @@ class ColorProcessor {
     const primarySeason = seasonScores[0];
 
     // Secondary seasons: those with at least 1 match and close to primary score
-    const secondarySeasons = seasonScores.slice(1)
-      .filter(season =>
-        season.matchCount > 0 &&
-        season.matchCount >= primarySeason.matchCount - 1
+    const secondarySeasons = seasonScores
+      .slice(1)
+      .filter(
+        (season) => season.matchCount > 0 && season.matchCount >= primarySeason.matchCount - 1,
       )
       .slice(0, 3); // Limit to top 3 secondary seasons
 
@@ -246,7 +248,7 @@ class ColorProcessor {
       primarySeason,
       secondarySeasons,
       allScores: seasonScores,
-      noMatch: primarySeason.matchCount === 0
+      noMatch: primarySeason.matchCount === 0,
     };
   }
 
@@ -267,7 +269,7 @@ class ColorProcessor {
       return {
         compatible: false,
         reason: 'No clear season match',
-        recommendation: 'This item has colors that don\'t fit standard seasonal palettes'
+        recommendation: "This item has colors that don't fit standard seasonal palettes",
       };
     }
 
@@ -277,18 +279,18 @@ class ColorProcessor {
         compatible: true,
         matchType: 'primary',
         reason: `Perfect match for ${primarySeason.seasonName}`,
-        confidence: primarySeason.confidence
+        confidence: primarySeason.confidence,
       };
     }
 
     // Check if user's season is in secondary matches
-    const secondaryMatch = secondarySeasons.find(s => s.seasonKey === userSeasonKey);
+    const secondaryMatch = secondarySeasons.find((s) => s.seasonKey === userSeasonKey);
     if (secondaryMatch) {
       return {
         compatible: true,
         matchType: 'secondary',
         reason: `Also works for ${secondaryMatch.seasonName}`,
-        confidence: secondaryMatch.confidence
+        confidence: secondaryMatch.confidence,
       };
     }
 
@@ -297,10 +299,11 @@ class ColorProcessor {
       compatible: false,
       matchType: 'none',
       reason: `This is a ${primarySeason.seasonName} item`,
-      recommendation: secondarySeasons.length > 0
-        ? `Also works for: ${secondarySeasons.map(s => s.seasonName).join(', ')}`
-        : `Best suited for ${primarySeason.seasonName}`,
-      suggestedSeasons: [primarySeason, ...secondarySeasons]
+      recommendation:
+        secondarySeasons.length > 0
+          ? `Also works for: ${secondarySeasons.map((s) => s.seasonName).join(', ')}`
+          : `Best suited for ${primarySeason.seasonName}`,
+      suggestedSeasons: [primarySeason, ...secondarySeasons],
     };
   }
 
@@ -310,10 +313,15 @@ class ColorProcessor {
    * @returns {string} Hex color code
    */
   rgbToHex(rgb) {
-    return '#' + rgb.map(x => {
-      const hex = x.toString(16);
-      return hex.length === 1 ? '0' + hex : hex;
-    }).join('');
+    return (
+      '#' +
+      rgb
+        .map((x) => {
+          const hex = x.toString(16);
+          return hex.length === 1 ? '0' + hex : hex;
+        })
+        .join('')
+    );
   }
 }
 

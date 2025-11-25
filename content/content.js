@@ -531,10 +531,10 @@
       const height = img.naturalHeight || img.height;
 
       // Calculate crop percentages
-      const cropLeft = Math.floor(width * 0.2); // Remove 20% from left
-      const cropRight = Math.floor(width * 0.2); // Remove 20% from right
-      const cropTop = Math.floor(height * 0.15); // Remove 15% from top
-      const cropBottom = Math.floor(height * 0.1); // Remove 10% from bottom
+      const cropLeft = Math.floor(width * 0.4); // Remove 20% from left
+      const cropRight = Math.floor(width * 0.4); // Remove 20% from right
+      const cropTop = Math.floor(height * 0.2); // Remove 15% from top
+      const cropBottom = Math.floor(height * 0.2); // Remove 10% from bottom
 
       const croppedWidth = width - cropLeft - cropRight;
       const croppedHeight = height - cropTop - cropBottom;
@@ -649,12 +649,6 @@
       return true;
     });
   }
-
-
-
-
-
-
 
   /**
    * Check if we can access image data without CORS errors
@@ -1232,6 +1226,11 @@
    * Used when skipping ColorThief and relying solely on website swatch
    */
   function applySwatchOnlyFilter(img, matchResult, swatchColor) {
+    // Don't apply filters to small images (icons, thumbnails)
+    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+      return;
+    }
+
     // Remove existing filter classes
     img.classList.remove('season-match', 'season-no-match');
 
@@ -1282,7 +1281,7 @@
     addColorPaletteSwatch(container, img);
 
     // Add simplified match badge (checkmark or X only)
-    addSwatchOnlyBadge(container, matchResult, swatchColor);
+    addSwatchOnlyBadge(container, img, matchResult, swatchColor);
 
     // Add simple tooltip
     addSwatchOnlyTooltip(img, matchResult, swatchColor);
@@ -1292,6 +1291,11 @@
    * Apply visual filter to image
    */
   function applyFilter(img, matchResult, productSeasonResult, compatibility) {
+    // Don't apply filters to small images (icons, thumbnails)
+    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+      return;
+    }
+
     // Remove existing filter classes
     img.classList.remove('season-match', 'season-no-match');
 
@@ -1342,7 +1346,7 @@
     addColorPaletteSwatch(container, img);
 
     // Add enhanced match badge with season info
-    addMatchBadge(container, matchResult, productSeasonResult, compatibility);
+    addMatchBadge(container, img, matchResult, productSeasonResult, compatibility);
 
     // Add enhanced hover tooltip with season details
     addTooltip(img, matchResult, productSeasonResult, compatibility);
@@ -1352,6 +1356,11 @@
    * Add color palette debug display showing dominant colors from ColorThief
    */
   function addColorPaletteSwatch(container, img) {
+    // Don't add swatches to small images (icons, thumbnails)
+    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+      return;
+    }
+
     // Remove existing palette display
     const existingPalette = container.querySelector('.color-palette-swatch-container');
     if (existingPalette) {
@@ -1399,7 +1408,12 @@
   /**
    * Add match badge overlay with season information
    */
-  function addMatchBadge(container, matchResult, productSeasonResult, compatibility) {
+  function addMatchBadge(container, img, matchResult, productSeasonResult, compatibility) {
+    // Don't add badges to small images (icons, thumbnails)
+    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+      return;
+    }
+
     // Remove existing badge
     const existingBadge = container.querySelector('.season-badge');
     if (existingBadge) {
@@ -1472,7 +1486,12 @@
   /**
    * Add simplified badge for swatch-only mode (checkmark or X with "W" indicator)
    */
-  function addSwatchOnlyBadge(container, matchResult, swatchColor) {
+  function addSwatchOnlyBadge(container, img, matchResult, swatchColor) {
+    // Don't add badges to small images (icons, thumbnails)
+    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+      return;
+    }
+
     // Remove existing badge
     const existingBadge = container.querySelector('.season-badge');
     if (existingBadge) {
