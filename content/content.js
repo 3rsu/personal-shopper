@@ -517,12 +517,12 @@
   }
 
   /**
-   * Find the dominant background color from border samples using clustering
+   * Find all distinct background colors from border samples using clustering
    * @param {Array<Array<number>>} borderColors - Array of RGB color arrays
-   * @returns {Array<number>|null} - RGB array of background color, or null
+   * @returns {Array<Array<number>>} - Array of RGB background colors (multiple backgrounds supported)
    */
-  function findDominantBackgroundColor(borderColors) {
-    if (!borderColors || borderColors.length === 0) return null;
+  function findAllBackgroundColors(borderColors) {
+    if (!borderColors || borderColors.length === 0) return [];
 
     // Group similar colors (deltaE < 10 threshold)
     const clusters = [];
@@ -546,29 +546,28 @@
       }
     }
 
-    // Find largest cluster (most common background color)
-    let largestCluster = clusters[0];
+    // Return ALL significant clusters (2+ samples), not just the largest
+    // This handles multi-region backgrounds (e.g., floor + sky)
+    const backgroundColors = [];
+
     for (const cluster of clusters) {
-      if (cluster.colors.length > largestCluster.colors.length) {
-        largestCluster = cluster;
+      // Only include clusters with 2+ samples (filter out noise)
+      if (cluster.colors.length >= 2) {
+        // Calculate average color for this cluster
+        const avgR = Math.round(
+          cluster.colors.reduce((sum, c) => sum + c[0], 0) / cluster.colors.length,
+        );
+        const avgG = Math.round(
+          cluster.colors.reduce((sum, c) => sum + c[1], 0) / cluster.colors.length,
+        );
+        const avgB = Math.round(
+          cluster.colors.reduce((sum, c) => sum + c[2], 0) / cluster.colors.length,
+        );
+        backgroundColors.push([avgR, avgG, avgB]);
       }
     }
 
-    // Return average of cluster colors
-    if (largestCluster && largestCluster.colors.length > 0) {
-      const avgR = Math.round(
-        largestCluster.colors.reduce((sum, c) => sum + c[0], 0) / largestCluster.colors.length,
-      );
-      const avgG = Math.round(
-        largestCluster.colors.reduce((sum, c) => sum + c[1], 0) / largestCluster.colors.length,
-      );
-      const avgB = Math.round(
-        largestCluster.colors.reduce((sum, c) => sum + c[2], 0) / largestCluster.colors.length,
-      );
-      return [avgR, avgG, avgB];
-    }
-
-    return null;
+    return backgroundColors;
   }
 
   /**
@@ -632,9 +631,10 @@
       const height = img.offsetHeight || img.height;
 
       // Calculate target crop dimensions for upper body focus
-      // Target: ~50% of width, ~60% of height (upper portion)
-      const targetWidth = Math.floor(width * 0.5);
-      const targetHeight = Math.floor(height * 0.6);
+      // Target: ~45% of width, ~55% of height (upper portion)
+      // Tightened from 50%×60% to reduce background exposure
+      const targetWidth = Math.floor(width * 0.45);
+      const targetHeight = Math.floor(height * 0.55);
 
       // Define garment boost region (chest/upper torso area)
       // const garmentBoost = {
@@ -723,48 +723,49 @@
   /**
    * Filter out background and desaturated colors from palette
    * @param {Array<Array<number>>} palette - Array of RGB color arrays
-   * @param {Array<number>|null} backgroundColor - RGB array of detected background
+   * @param {Array<Array<number>>} backgroundColors - Array of detected background colors (supports multiple backgrounds)
    * @param {Array<Object>} textColorMentions - Text color mentions from product description (optional)
    * @returns {Array<Array<number>>} - Filtered palette
    */
-  function filterBackgroundColors(palette, backgroundColor, textColorMentions = []) {
+  function filterBackgroundColors(palette, backgroundColors, textColorMentions = []) {
     if (!palette || palette.length === 0) return palette;
 
     return palette.filter((color) => {
-      // TEXT-ENHANCEMENT BACKGROUND PROTECTION
-      // If text mentions this color AND it's similar to background, KEEP it
-      // Rationale: It's likely the product color, not the background
-      // Example: "Navy Blue Sweater" on navy background → keep navy
-      if (backgroundColor && textColorMentions.length > 0) {
-        const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
-        if (deltaE < 30) {
-          // Color is similar to background - check if text mentions it
-          const colorHex = colorProcessor.rgbToHex(color);
-          const isTextMentioned = textColorMentions.some((mention) => {
-            if (!mention.hex) return false;
-            const textDeltaE = colorProcessor.calculateDeltaE(
-              colorProcessor.hexToRgb(mention.hex),
-              color,
-            );
-            return textDeltaE < 20; // Close match to text-mentioned color
-          });
+      // Check against ALL detected background colors (handles multi-region backgrounds like floor + sky)
+      if (backgroundColors && backgroundColors.length > 0) {
+        for (const backgroundColor of backgroundColors) {
+          const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
 
-          if (isTextMentioned) {
-            console.log(
-              '[Season Color Checker] Preserving color similar to background (text-mentioned):',
-              colorHex,
-            );
-            return true; // KEEP - text confirms this is the product color
+          if (deltaE < 30) {
+            // Color is similar to this background region
+
+            // TEXT-ENHANCEMENT BACKGROUND PROTECTION
+            // If text mentions this color AND it's similar to background, KEEP it
+            // Rationale: It's likely the product color, not the background
+            // Example: "Navy Blue Sweater" on navy background → keep navy
+            if (textColorMentions.length > 0) {
+              const colorHex = colorProcessor.rgbToHex(color);
+              const isTextMentioned = textColorMentions.some((mention) => {
+                if (!mention.hex) return false;
+                const textDeltaE = colorProcessor.calculateDeltaE(
+                  colorProcessor.hexToRgb(mention.hex),
+                  color,
+                );
+                return textDeltaE < 20; // Close match to text-mentioned color
+              });
+
+              if (isTextMentioned) {
+                console.log(
+                  '[Season Color Checker] Preserving color similar to background (text-mentioned):',
+                  colorHex,
+                );
+                return true; // KEEP - text confirms this is the product color
+              }
+            }
+
+            // Not text-mentioned, filter it out as background
+            return false;
           }
-
-          // Not text-mentioned, filter it out as background
-          return false;
-        }
-      } else if (backgroundColor) {
-        // No text mentions available, use original logic
-        const deltaE = colorProcessor.calculateDeltaE(color, backgroundColor);
-        if (deltaE < 30) {
-          return false;
         }
       }
 
@@ -1011,17 +1012,19 @@
 
       const colorThief = new ColorThief();
       let dominantColors;
-      let backgroundColor = null;
+      let backgroundColors = [];
 
       try {
-        // Step 1: Sample border colors to detect background
+        // Step 1: Sample border colors to detect ALL background regions (supports multi-color backgrounds)
         const borderColors = sampleBorder(processableImage);
         if (borderColors.length > 0) {
-          backgroundColor = findDominantBackgroundColor(borderColors);
-          if (backgroundColor) {
+          backgroundColors = findAllBackgroundColors(borderColors);
+          if (backgroundColors.length > 0) {
             console.log(
-              '[Season Color Checker] Detected background color:',
-              colorProcessor.rgbToHex(backgroundColor),
+              '[Season Color Checker] Detected',
+              backgroundColors.length,
+              'background region(s):',
+              backgroundColors.map((bg) => colorProcessor.rgbToHex(bg)).join(', '),
             );
           }
         }
@@ -1068,7 +1071,7 @@
 
         // Step 4: Filter out background and desaturated colors
         // Pass text mentions to protect product colors that match text descriptions
-        dominantColors = filterBackgroundColors(rawColors, backgroundColor, textColorMentions);
+        dominantColors = filterBackgroundColors(rawColors, backgroundColors, textColorMentions);
 
         console.log(
           '[Season Color Checker] Filtered palette:',
