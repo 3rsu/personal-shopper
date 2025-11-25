@@ -636,12 +636,25 @@
       const targetWidth = Math.floor(width * 0.5);
       const targetHeight = Math.floor(height * 0.6);
 
+      // Define garment boost region (chest/upper torso area)
+      const garmentBoost = {
+        x: Math.floor(width * 0.25), // 25% from left (center region)
+        y: Math.floor(height * 0.3), // 30% from top (below typical face)
+        width: Math.floor(width * 0.5), // 50% width (center torso)
+        height: Math.floor(height * 0.35), // 35% height (chest area)
+        weight: 1.0, // Full boost weight
+      };
+
       // Use smartcrop to find best crop for upper garment
       const result = await smartcrop.crop(img, {
         width: targetWidth,
         height: targetHeight,
         minScale: 0.8, // Allow slight downscaling if needed
         ruleOfThirds: true, // Better composition
+        skinWeight: 0, // Disable skin detection to avoid face bias
+        detailWeight: 0.4, // Boost edge/texture detection (garment details)
+        saturationWeight: 0.4, // Boost color detection (garment colors)
+        boost: [garmentBoost], // Prioritize chest/torso area
       });
 
       const crop = result.topCrop;
