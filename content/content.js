@@ -769,8 +769,16 @@
       }
 
       // Filter out very desaturated colors (likely backgrounds/neutrals)
+      // BUT preserve dark colors (blacks, navies, charcoals) which are valid garment colors
       const saturation = getSaturation(color);
-      if (saturation < 0.15) {
+
+      // Calculate lightness to distinguish dark neutrals from light backgrounds
+      const lightness = (Math.max(...color) + Math.min(...color)) / (2 * 255);
+
+      // Only filter desaturated colors if they're NOT dark
+      // Black/navy garments: low saturation + low lightness (< 0.3) → KEEP
+      // Beige/gray backgrounds: low saturation + high lightness (> 0.3) → FILTER
+      if (saturation < 0.15 && lightness > 0.3) {
         return false;
       }
 
