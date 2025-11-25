@@ -190,6 +190,22 @@
       });
     }
 
+    // Favorites list management
+    const toggleFavoritesListBtn = document.getElementById('toggle-favorites-list');
+    if (toggleFavoritesListBtn) {
+      toggleFavoritesListBtn.addEventListener('click', toggleFavoritesList);
+    }
+
+    const showAllFavoritesBtn = document.getElementById('show-all-favorites');
+    if (showAllFavoritesBtn) {
+      showAllFavoritesBtn.addEventListener('click', showAllFavorites);
+    }
+
+    const addCurrentSiteBtn = document.getElementById('add-current-site');
+    if (addCurrentSiteBtn) {
+      addCurrentSiteBtn.addEventListener('click', addCurrentSite);
+    }
+
     // Clear wishlist
     const clearWishlistBtn = document.getElementById('clear-wishlist');
     if (clearWishlistBtn) {
@@ -246,6 +262,13 @@
 
     // Update domain info and favorite button
     updateDomainInfo();
+
+    // Update favorites count (even if list is collapsed)
+    const favoritesCount = document.getElementById('favorites-count');
+    if (favoritesCount) {
+      const count = currentSettings.favoriteSites?.length || 0;
+      favoritesCount.textContent = `(${count})`;
+    }
 
     // Update show overlay toggle
     const showOverlayToggle = document.getElementById('show-overlay-toggle');
@@ -470,6 +493,162 @@
     // Update storage - content script will toggle body class
     chrome.storage.sync.set({ showSwatches: enabled });
     currentSettings.showSwatches = enabled;
+  }
+
+  /**
+   * Toggle favorites list visibility
+   */
+  let favoritesListExpanded = false;
+  let showingAllFavorites = false;
+
+  function toggleFavoritesList() {
+    const container = document.getElementById('favorites-list-container');
+    const expandIcon = document.querySelector('.expand-icon');
+
+    favoritesListExpanded = !favoritesListExpanded;
+
+    if (favoritesListExpanded) {
+      container.style.display = 'block';
+      if (expandIcon) expandIcon.classList.add('expanded');
+      renderFavoritesList();
+    } else {
+      container.style.display = 'none';
+      if (expandIcon) expandIcon.classList.remove('expanded');
+      showingAllFavorites = false;
+    }
+  }
+
+  /**
+   * Render favorites list
+   */
+  async function renderFavoritesList() {
+    const listContainer = document.getElementById('favorites-list');
+    const showAllBtn = document.getElementById('show-all-favorites');
+    const addCurrentBtn = document.getElementById('add-current-site');
+    const addSiteDomain = document.getElementById('add-site-domain');
+    const favoritesCount = document.getElementById('favorites-count');
+
+    if (!listContainer) return;
+
+    const favoriteSites = currentSettings.favoriteSites || [];
+    const currentDomain = await getCurrentDomain();
+
+    // Update count
+    if (favoritesCount) {
+      favoritesCount.textContent = `(${favoriteSites.length})`;
+    }
+
+    // Show "Add current site" button if current domain is not in favorites
+    const isCurrentInFavorites = currentDomain && favoriteSites.includes(currentDomain);
+    if (addCurrentBtn && addSiteDomain && currentDomain) {
+      if (!isCurrentInFavorites) {
+        addCurrentBtn.style.display = 'block';
+        addSiteDomain.textContent = currentDomain;
+      } else {
+        addCurrentBtn.style.display = 'none';
+      }
+    }
+
+    // Determine how many to show
+    const INITIAL_SHOW = 5;
+    const sitesToShow = showingAllFavorites ? favoriteSites : favoriteSites.slice(0, INITIAL_SHOW);
+    const remaining = favoriteSites.length - INITIAL_SHOW;
+
+    // Render list
+    listContainer.innerHTML = '';
+    sitesToShow.forEach(site => {
+      const item = document.createElement('div');
+      item.className = 'favorite-site-item';
+      if (site === currentDomain) {
+        item.classList.add('current-site');
+      }
+
+      item.innerHTML = `
+        <span class="favorite-site-name">${site}</span>
+        <button class="remove-favorite-btn" data-domain="${site}" title="Remove ${site}">×</button>
+      `;
+
+      // Add remove button event listener
+      const removeBtn = item.querySelector('.remove-favorite-btn');
+      removeBtn.addEventListener('click', () => removeFavoriteSite(site));
+
+      listContainer.appendChild(item);
+    });
+
+    // Show/hide "Show all" button
+    if (showAllBtn) {
+      const remainingCount = document.getElementById('remaining-count');
+      if (remaining > 0 && !showingAllFavorites) {
+        showAllBtn.style.display = 'block';
+        if (remainingCount) remainingCount.textContent = remaining;
+      } else {
+        showAllBtn.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Show all favorites (expand list)
+   */
+  function showAllFavorites() {
+    showingAllFavorites = true;
+    renderFavoritesList();
+  }
+
+  /**
+   * Remove a site from favorites
+   */
+  async function removeFavoriteSite(domain) {
+    const favoriteSites = currentSettings.favoriteSites || [];
+    const newFavorites = favoriteSites.filter(site => site !== domain);
+
+    // Update storage
+    chrome.storage.sync.set({ favoriteSites: newFavorites });
+    currentSettings.favoriteSites = newFavorites;
+
+    // Re-render list
+    renderFavoritesList();
+
+    // Update domain info in case we removed current site
+    updateDomainInfo();
+
+    // Reload tab if we removed the current site
+    const currentDomain = await getCurrentDomain();
+    if (domain === currentDomain) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        chrome.tabs.reload(tab.id);
+      }
+    }
+  }
+
+  /**
+   * Add current site to favorites
+   */
+  async function addCurrentSite() {
+    const domain = await getCurrentDomain();
+    if (!domain) return;
+
+    const favoriteSites = currentSettings.favoriteSites || [];
+    if (favoriteSites.includes(domain)) return; // Already in favorites
+
+    const newFavorites = [...favoriteSites, domain];
+
+    // Update storage
+    chrome.storage.sync.set({ favoriteSites: newFavorites });
+    currentSettings.favoriteSites = newFavorites;
+
+    // Re-render list
+    renderFavoritesList();
+
+    // Update domain info
+    updateDomainInfo();
+
+    // Reload current tab to activate extension
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      chrome.tabs.reload(tab.id);
+    }
   }
 
   /**
@@ -785,6 +964,18 @@
       if (changes.favoriteSites) {
         currentSettings.favoriteSites = changes.favoriteSites.newValue;
         updateDomainInfo();
+
+        // Update favorites count
+        const favoritesCount = document.getElementById('favorites-count');
+        if (favoritesCount) {
+          const count = changes.favoriteSites.newValue?.length || 0;
+          favoritesCount.textContent = `(${count})`;
+        }
+
+        // Re-render favorites list if it's expanded
+        if (favoritesListExpanded) {
+          renderFavoritesList();
+        }
       }
 
       if (changes.showOverlay) {

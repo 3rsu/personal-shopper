@@ -73,6 +73,31 @@
             </p>
           </label>
         </div>
+
+        <!-- Active Sites Management -->
+        <div class="favorites-section">
+          <div class="favorites-header">
+            <div class="favorites-title-row">
+              <h3 class="favorites-title">
+                Active Sites <span class="favorites-count" id="favorites-count">(0)</span>
+              </h3>
+              <button class="btn btn-text btn-sm" id="toggle-favorites-list" aria-label="Manage active sites">
+                Manage <span class="expand-icon">▼</span>
+              </button>
+            </div>
+            <p class="favorites-description">Extension will only run on these sites</p>
+          </div>
+
+          <div class="favorites-list-container" id="favorites-list-container" style="display: none;">
+            <div id="favorites-list" class="favorites-list"></div>
+            <button class="btn-show-all-favorites" id="show-all-favorites" style="display: none;">
+              Show all (<span id="remaining-count">0</span> more)
+            </button>
+            <button class="btn-add-current-site" id="add-current-site" style="display: none;">
+              + Add <span id="add-site-domain"></span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <!-- Manual Color Picker Section -->
