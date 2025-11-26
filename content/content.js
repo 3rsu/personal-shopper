@@ -1219,7 +1219,7 @@
     if (!parent) return;
 
     // Find sibling images in the same parent
-    const siblingImages = Array.from(parent.querySelectorAll('img')).filter(sibling => {
+    const siblingImages = Array.from(parent.querySelectorAll('img')).filter((sibling) => {
       // Must be product images (not tiny swatches/icons)
       if (sibling.offsetWidth < 100 || sibling.offsetHeight < 100) return false;
       // Must have been processed by our extension
@@ -1246,7 +1246,7 @@
 
     // Link siblings together with shared group ID
     const groupId = `hover-group-${Date.now()}-${Math.random()}`;
-    siblingImages.forEach(sibling => {
+    siblingImages.forEach((sibling) => {
       sibling.dataset.hoverGroup = groupId;
     });
 
@@ -1254,7 +1254,7 @@
     const visibleImage = getVisibleImage(siblingImages);
     const sharedDecision = {
       matches: visibleImage.dataset.seasonMatch === 'true',
-      matchScore: parseFloat(visibleImage.dataset.matchScore) || 0
+      matchScore: parseFloat(visibleImage.dataset.matchScore) || 0,
     };
 
     // Store shared decision on parent
@@ -1268,15 +1268,15 @@
    * Detect if siblings use visibility toggle pattern (opacity, display, etc.)
    */
   function detectVisibilityTogglePattern(images) {
-    const styles = images.map(img => window.getComputedStyle(img));
+    const styles = images.map((img) => window.getComputedStyle(img));
 
     // Pattern 1: Opacity-based toggle (one hidden, one visible)
-    const opacities = styles.map(s => parseFloat(s.opacity));
-    const hasOpacityToggle = opacities.some(o => o < 0.3) && opacities.some(o => o > 0.7);
+    const opacities = styles.map((s) => parseFloat(s.opacity));
+    const hasOpacityToggle = opacities.some((o) => o < 0.3) && opacities.some((o) => o > 0.7);
 
     // Pattern 2: Absolute positioning with z-index stacking
-    const positions = styles.map(s => s.position);
-    const hasAbsoluteStacking = positions.every(p => p === 'absolute');
+    const positions = styles.map((s) => s.position);
+    const hasAbsoluteStacking = positions.every((p) => p === 'absolute');
 
     // Pattern 3: Parent has transition/animation classes (common hover pattern)
     const parent = images[0].parentElement;
@@ -1317,13 +1317,15 @@
    */
   function validateColorSimilarity(images) {
     // Get dominant colors from each image
-    const palettes = images.map(img => {
-      try {
-        return JSON.parse(img.dataset.dominantColors || '[]');
-      } catch {
-        return [];
-      }
-    }).filter(p => p.length > 0);
+    const palettes = images
+      .map((img) => {
+        try {
+          return JSON.parse(img.dataset.dominantColors || '[]');
+        } catch {
+          return [];
+        }
+      })
+      .filter((p) => p.length > 0);
 
     if (palettes.length < 2) return false;
 
@@ -1369,11 +1371,13 @@
    */
   function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
   }
 
   /**
@@ -1385,11 +1389,11 @@
       const visibleImage = getVisibleImage(images);
 
       // Update which image shows the color swatches and badge
-      images.forEach(img => {
+      images.forEach((img) => {
         const swatchContainer = img.querySelector('.color-palette-swatch-container');
         if (swatchContainer) {
           // Show swatches only on the visible image
-          swatchContainer.style.display = (img === visibleImage) ? 'flex' : 'none';
+          swatchContainer.style.display = img === visibleImage ? 'flex' : 'none';
         }
 
         // Get the container for badge placement
@@ -1398,7 +1402,7 @@
 
         if (badge) {
           // Show badge only on visible image
-          badge.style.display = (img === visibleImage) ? 'block' : 'none';
+          badge.style.display = img === visibleImage ? 'block' : 'none';
         }
       });
     });
@@ -1407,7 +1411,7 @@
     observer.observe(parent, {
       attributes: true,
       attributeFilter: ['class', 'style'],
-      subtree: true
+      subtree: true,
     });
 
     // Store observer so we can disconnect later if needed
@@ -1463,21 +1467,15 @@
     if (matchResult.isMatch) {
       // Green border for matches
       // img.classList.add('season-match');
-      container.classList.remove('season-dimmed');
+      // container.classList.remove('season-dimmed');
     } else {
       // Dim non-matches
       img.classList.add('season-no-match');
-      container.classList.add('season-dimmed');
+      // container.classList.add('season-dimmed');
     }
 
     // Add single color swatch display
     addColorPaletteSwatch(container, img);
-
-    // Add simplified match badge (checkmark or X only)
-    addSwatchOnlyBadge(container, img, matchResult, swatchColor);
-
-    // Add simple tooltip
-    addSwatchOnlyTooltip(img, matchResult, swatchColor);
   }
 
   /**
@@ -1527,12 +1525,12 @@
 
     if (matchResult.matches) {
       // Green border for matches
-      img.classList.add('season-match');
-      container.classList.remove('season-dimmed');
+      // img.classList.add('season-match');
+      // container.classList.remove('season-dimmed');
     } else {
       // Dim non-matches
       img.classList.add('season-no-match');
-      container.classList.add('season-dimmed');
+      // container.classList.add('season-dimmed');
     }
 
     // Add color palette debug display
@@ -1630,7 +1628,7 @@
         const sharedDecision = JSON.parse(parent.dataset.hoverGroupMatch);
         effectiveMatchResult = {
           matches: sharedDecision.matches,
-          confidence: sharedDecision.matchScore
+          confidence: sharedDecision.matchScore,
         };
       } catch (e) {
         // Fall back to individual result if parsing fails
@@ -1640,9 +1638,8 @@
 
     // Check if image is currently hidden (don't show badge on hidden hover images)
     const style = window.getComputedStyle(img);
-    const isHidden = parseFloat(style.opacity) < 0.3 ||
-                     style.display === 'none' ||
-                     style.visibility === 'hidden';
+    const isHidden =
+      parseFloat(style.opacity) < 0.3 || style.display === 'none' || style.visibility === 'hidden';
 
     if (isHidden && img.dataset.hoverGroup) {
       // Skip badge for hidden images in hover groups
@@ -1664,8 +1661,13 @@
     const badge = document.createElement('div');
     badge.className = 'season-badge';
 
-    // Show checkmark for matches only
-    badge.innerHTML = '✓';
+    // Show blob icon for matches only
+    const icon = document.createElement('img');
+    icon.src = chrome.runtime.getURL('icons/blob.png');
+    icon.style.width = '100%';
+    icon.style.height = '100%';
+    icon.style.objectFit = 'contain';
+    badge.appendChild(icon);
     badge.classList.add('match');
 
     container.appendChild(badge);
@@ -1684,60 +1686,6 @@
     } else {
       tooltip = `✗ Doesn't match your ${seasonName} palette\n`;
       tooltip += `Confidence: ${matchResult.confidence.toFixed(0)}%`;
-    }
-
-    img.title = tooltip;
-  }
-
-  /**
-   * Add simplified badge for swatch-only mode (checkmark or X with "W" indicator)
-   */
-  function addSwatchOnlyBadge(container, img, matchResult, swatchColor) {
-    // Don't add badges to small images (icons, thumbnails)
-    if (img.offsetWidth < 100 || img.offsetHeight < 100) {
-      return;
-    }
-
-    // Only show badge for matches
-    if (!matchResult.isMatch) {
-      return;
-    }
-
-    // Remove existing badge
-    const existingBadge = container.querySelector('.season-badge');
-    if (existingBadge) {
-      existingBadge.remove();
-    }
-
-    const badge = document.createElement('div');
-    badge.className = 'season-badge swatch-only-badge';
-
-    // Show checkmark for matches only
-    badge.innerHTML = '✓';
-    badge.classList.add('match');
-
-    // Add "W" indicator badge to show this came from website swatch
-    badge.title = `Website color (${swatchColor.source})`;
-
-    container.appendChild(badge);
-  }
-
-  /**
-   * Add simplified tooltip for swatch-only mode
-   */
-  function addSwatchOnlyTooltip(img, matchResult, swatchColor) {
-    let tooltip = '';
-
-    if (matchResult.isMatch) {
-      tooltip = `✓ ${swatchColor.hex} matches your ${settings.selectedSeason} palette\n`;
-      tooltip += `Color from website (${swatchColor.source})\n`;
-      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (${
-        matchResult.deltaE < 5 ? 'excellent' : matchResult.deltaE < 10 ? 'good' : 'acceptable'
-      } match)`;
-    } else {
-      tooltip = `✗ ${swatchColor.hex} doesn't match your ${settings.selectedSeason} palette\n`;
-      tooltip += `Color from website (${swatchColor.source})\n`;
-      tooltip += `Delta E: ${matchResult.deltaE.toFixed(1)} (too different)`;
     }
 
     img.title = tooltip;
@@ -1800,9 +1748,9 @@
       img.title = '';
     });
 
-    document.querySelectorAll('.season-dimmed').forEach((container) => {
-      container.classList.remove('season-dimmed');
-    });
+    // document.querySelectorAll('.season-dimmed').forEach((container) => {
+    //   container.classList.remove('season-dimmed');
+    // });
 
     document.querySelectorAll('.season-badge').forEach((badge) => {
       badge.remove();

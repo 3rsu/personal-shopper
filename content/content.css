@@ -13,7 +13,7 @@ body:not(.show-swatches) .color-palette-swatch-container {
 /* Hide highlights when disabled */
 body.highlights-hidden .season-match-border,
 body.highlights-hidden .season-no-match-border {
-  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Extension inactive state */
@@ -34,10 +34,8 @@ body.extension-inactive .season-filter-container {
 /* Ensure images inside container maintain their original display and sizing */
 .season-filter-container > img {
   display: block !important;
-  width: 100% !important;
-  height: auto !important;
-  max-width: none !important; /* Override page styles */
-  min-width: 0 !important;
+  max-width: none !important; /* Override page styles that might constrain size */
+  /* Original width/height preserved - no forced sizing */
 }
 
 /* Dimming disabled - non-matches appear at full opacity */
@@ -51,8 +49,9 @@ body.extension-inactive .season-filter-container {
 
 /* Product Image States */
 img.season-match {
-  border: 3px solid #10b981 !important;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
+  /* Using inset box-shadow instead of border to prevent layout shift */
+  box-shadow: inset 0 0 0 3px #10b981,
+    /* Inner border (no layout impact) */ 0 0 12px rgba(16, 185, 129, 0.4) !important; /* Outer glow */
   border-radius: 4px !important;
 }
 
@@ -109,7 +108,8 @@ img.season-no-match:hover {
 }
 
 .season-badge.match {
-  background-color: #10b981;
+  background-color: transparent; /* Transparent to show blob image */
+  box-shadow: none; /* No shadow for blob icon */
   color: white;
 }
 
@@ -137,15 +137,17 @@ img.season-no-match:hover {
 }
 
 /* Make the swatch color display more prominent for swatch-only mode */
-.season-filter-container:has(img[data-swatch-only="true"]) .color-palette-swatch-container .season-color-swatch {
+.season-filter-container:has(img[data-swatch-only='true'])
+  .color-palette-swatch-container
+  .season-color-swatch {
   width: 18px !important;
   height: 18px !important;
   border-width: 2px !important;
 }
 
 /* Add "W" indicator for website-sourced detection */
-.season-filter-container:has(img[data-swatch-only="true"]) .color-palette-swatch-container::after {
-  content: "W";
+.season-filter-container:has(img[data-swatch-only='true']) .color-palette-swatch-container::after {
+  content: 'W';
   position: absolute;
   bottom: -2px;
   right: -2px;
@@ -561,7 +563,6 @@ img.season-no-match {
 
 /* Hide highlights when toggle is off */
 body.season-highlights-hidden img.season-match {
-  border: none !important;
   box-shadow: none !important;
 }
 
