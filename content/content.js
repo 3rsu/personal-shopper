@@ -1190,6 +1190,10 @@
 
       img.dataset.dominantColors = JSON.stringify(displayColors);
 
+      // IMPORTANT: Detect hover pairs BEFORE wrapping in containers
+      // This ensures siblings are detected while they're still in the same parent
+      detectAndLinkHoverPair(img);
+
       // Apply visual filter based on match result
       applyFilter(img, matchResult);
 
@@ -1197,9 +1201,6 @@
       if (matchResult.matches) {
         stats.matchingImages++;
       }
-
-      // After processing, check for hover pair siblings
-      detectAndLinkHoverPair(img);
     } catch (error) {
       console.error('Error processing image:', error);
     }
@@ -1464,16 +1465,6 @@
       }
     }
 
-    if (matchResult.isMatch) {
-      // Green border for matches
-      // img.classList.add('season-match');
-      // container.classList.remove('season-dimmed');
-    } else {
-      // Dim non-matches
-      img.classList.add('season-no-match');
-      // container.classList.add('season-dimmed');
-    }
-
     // Add single color swatch display
     addColorPaletteSwatch(container, img);
   }
@@ -1490,48 +1481,65 @@
     // Remove existing filter classes
     img.classList.remove('season-match', 'season-no-match');
 
-    // Make the image itself position: relative so badge can be positioned
-    img.style.position = 'relative';
+    // Skip setting position for hover group images - preserve original positioning
+    // This prevents breaking website's hover effects (opacity/absolute positioning)
+    if (!img.dataset.hoverGroup) {
+      // Only set position: relative for non-hover images
+      img.style.position = 'relative';
+    }
 
     // Add container wrapper if needed
     let container = img.closest('.season-filter-container');
     if (!container) {
-      // Check if the parent can be used as container
       const parent = img.parentElement;
 
-      // Try to use parent if it's already position: relative/absolute
-      const parentStyle = window.getComputedStyle(parent);
-      if (parentStyle.position === 'relative' || parentStyle.position === 'absolute') {
-        container = parent;
-        container.classList.add('season-filter-container');
+      // SPECIAL HANDLING FOR HOVER GROUPS
+      // If this image is part of a hover group, check if parent is already a shared container
+      if (img.dataset.hoverGroup) {
+        // Check if parent already has season-filter-container class (from sibling hover image)
+        if (parent.classList.contains('season-filter-container')) {
+          // Reuse existing parent container - don't create a new one!
+          container = parent;
+          container.classList.add('season-hover-group');
+          console.log('[Season Color Checker] Reusing parent container for hover group');
+        } else {
+          // First hover image in this group - convert parent to container
+          container = parent;
+          container.classList.add('season-filter-container', 'season-hover-group');
+          console.log('[Season Color Checker] Converting parent to shared hover group container');
+        }
       } else {
-        // Only wrap if absolutely necessary
-        container = document.createElement('div');
-        container.className = 'season-filter-container';
+        // NOT a hover group - use normal container logic
+        const parentStyle = window.getComputedStyle(parent);
 
-        // Copy important layout properties from img to container
-        const imgStyle = window.getComputedStyle(img);
-        if (imgStyle.width && imgStyle.width !== 'auto') {
-          container.style.width = imgStyle.width;
-        }
-        if (imgStyle.height && imgStyle.height !== 'auto') {
-          container.style.height = imgStyle.height;
-        }
+        // Try to use parent if it's already position: relative/absolute
+        if (parentStyle.position === 'relative' || parentStyle.position === 'absolute') {
+          container = parent;
+          container.classList.add('season-filter-container');
+        } else {
+          // Create individual wrapper for this image
+          container = document.createElement('div');
+          container.className = 'season-filter-container';
 
-        img.parentNode.insertBefore(container, img);
-        container.appendChild(img);
+          // Copy important layout properties from img to container
+          const imgStyle = window.getComputedStyle(img);
+          if (imgStyle.width && imgStyle.width !== 'auto') {
+            container.style.width = imgStyle.width;
+          }
+          if (imgStyle.height && imgStyle.height !== 'auto') {
+            container.style.height = imgStyle.height;
+          }
+
+          img.parentNode.insertBefore(container, img);
+          container.appendChild(img);
+        }
       }
     }
 
-    if (matchResult.matches) {
-      // Green border for matches
-      // img.classList.add('season-match');
-      // container.classList.remove('season-dimmed');
-    } else {
-      // Dim non-matches
-      img.classList.add('season-no-match');
-      // container.classList.add('season-dimmed');
-    }
+    // if (!matchResult.matches) {
+    //   // Dim non-matches
+    //   img.classList.add('season-no-match');
+    // }
 
     // Add color palette debug display
     addColorPaletteSwatch(container, img);
@@ -1668,7 +1676,67 @@
     icon.style.height = '100%';
     icon.style.objectFit = 'contain';
     badge.appendChild(icon);
+
+    // Add checkmark on top of blob
+    const checkmark = document.createElement('span');
+    checkmark.textContent = '✓';
+    checkmark.className = 'badge-checkmark';
+    badge.appendChild(checkmark);
+
     badge.classList.add('match');
+
+    // Add wishlist tooltip and click handler
+    badge.title = 'Add to wishlist';
+    badge.style.cursor = 'pointer';
+    badge.style.pointerEvents = 'auto';
+
+    badge.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      // Get image data
+      const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
+      const matchScore = parseInt(img.dataset.matchScore || '0');
+      const imageUrl = img.src;
+
+      // Fetch image as data URL to avoid CORS issues in popup
+      try {
+        const fetchResponse = await chrome.runtime.sendMessage({
+          action: 'fetchImage',
+          url: imageUrl,
+        });
+
+        const imageDataUrl = fetchResponse && fetchResponse.success
+          ? fetchResponse.dataUrl
+          : imageUrl;
+
+        // Add to wishlist
+        const response = await chrome.runtime.sendMessage({
+          action: 'addToWishlist',
+          imageUrl: imageDataUrl,
+          pageUrl: window.location.href,
+          dominantColors: dominantColors,
+          matchScore: matchScore,
+        });
+
+        if (response && response.success) {
+          // Show visual feedback
+          badge.style.transform = 'scale(1.2)';
+          setTimeout(() => {
+            badge.style.transform = 'scale(1)';
+          }, 200);
+
+          // Optional: Show brief "Added!" tooltip
+          const originalTitle = badge.title;
+          badge.title = 'Added to wishlist!';
+          setTimeout(() => {
+            badge.title = originalTitle;
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('[Season Color Checker] Error adding to wishlist:', error);
+      }
+    });
 
     container.appendChild(badge);
   }
@@ -2034,69 +2102,9 @@
   }
 
   /**
-   * Handle clicks on product images to add to wishlist
+   * Wishlist functionality now handled by blob badge click (see addMatchBadge function)
+   * Old image click handler removed to avoid conflicts
    */
-  document.addEventListener(
-    'click',
-    (e) => {
-      const img = e.target.closest('img.season-match');
-      if (!img) return;
-
-      // Check if clicking on the image itself (not just near it)
-      if (e.target !== img) return;
-
-      // Show "Add to wishlist" option
-      if (confirm('Add this item to your wishlist?')) {
-        const dominantColors = JSON.parse(img.dataset.dominantColors || '[]');
-        const matchScore = parseInt(img.dataset.matchScore || '0');
-        const imageUrl = img.src;
-
-        // Fetch image as data URL to avoid CORS issues in popup
-        chrome.runtime.sendMessage(
-          {
-            action: 'fetchImage',
-            url: imageUrl,
-          },
-          (fetchResponse) => {
-            if (fetchResponse && fetchResponse.success) {
-              // Now add to wishlist with data URL
-              chrome.runtime.sendMessage(
-                {
-                  action: 'addToWishlist',
-                  imageUrl: fetchResponse.dataUrl,
-                  pageUrl: window.location.href,
-                  dominantColors: dominantColors,
-                  matchScore: matchScore,
-                },
-                (response) => {
-                  if (response && response.success) {
-                    alert('Added to wishlist!');
-                  }
-                },
-              );
-            } else {
-              // Fallback to original URL if fetch fails
-              chrome.runtime.sendMessage(
-                {
-                  action: 'addToWishlist',
-                  imageUrl: imageUrl,
-                  pageUrl: window.location.href,
-                  dominantColors: dominantColors,
-                  matchScore: matchScore,
-                },
-                (response) => {
-                  if (response && response.success) {
-                    alert('Added to wishlist!');
-                  }
-                },
-              );
-            }
-          },
-        );
-      }
-    },
-    true,
-  );
 
   /**
    * Helper function to extract domain from URL

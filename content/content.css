@@ -31,11 +31,24 @@ body.extension-inactive .season-filter-container {
   width: auto; /* Size to content */
 }
 
+/* Hover Group Container - Special handling for hover image pairs */
+.season-filter-container.season-hover-group {
+  overflow: hidden; /* Prevent stacked images from expanding container vertically */
+  display: inline-block;
+  line-height: 0;
+}
+
 /* Ensure images inside container maintain their original display and sizing */
 .season-filter-container > img {
   display: block !important;
   max-width: none !important; /* Override page styles that might constrain size */
   /* Original width/height preserved - no forced sizing */
+}
+
+/* Hover group images - preserve original positioning */
+.season-filter-container.season-hover-group > img[data-hover-group] {
+  /* Don't override position - let website's original hover effect work */
+  max-width: 100% !important;
 }
 
 /* Dimming disabled - non-matches appear at full opacity */
@@ -76,7 +89,7 @@ img.season-no-match:hover {
   grid-column: auto !important;
   grid-row: auto !important;
   top: 8px;
-  right: 8px;
+  left: 8px;
   width: 28px !important;
   height: 28px !important;
   max-width: 28px !important;
@@ -95,6 +108,17 @@ img.season-no-match:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+/* Badge hover effect for wishlist interaction */
+.season-badge.match {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.season-badge.match:hover {
+  transform: scale(1.1);
 }
 
 /* Ensure badge maintains fixed size and is never affected by container sizing */
@@ -111,6 +135,20 @@ img.season-no-match:hover {
   background-color: transparent; /* Transparent to show blob image */
   box-shadow: none; /* No shadow for blob icon */
   color: white;
+}
+
+/* Checkmark overlay on blob icon */
+.badge-checkmark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  z-index: 2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
 .season-badge.no-match {
