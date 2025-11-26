@@ -115,10 +115,12 @@ img.season-no-match:hover {
 .season-badge.match {
   cursor: pointer;
   pointer-events: auto;
+  background-color: #10b981; /* Green circle by default */
+  transition: background-color 0.2s ease;
 }
 
 .season-badge.match:hover {
-  transform: scale(1.1);
+  background-color: transparent; /* Hide green, show blob on hover */
 }
 
 /* Ensure badge maintains fixed size and is never affected by container sizing */
@@ -131,10 +133,15 @@ img.season-no-match:hover {
   min-height: 28px !important;
 }
 
-.season-badge.match {
-  background-color: transparent; /* Transparent to show blob image */
-  box-shadow: none; /* No shadow for blob icon */
-  color: white;
+/* Blob image - hidden by default, visible on hover with rotation */
+.season-badge.match img {
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.5s ease;
+}
+
+.season-badge.match:hover img {
+  opacity: 1;
+  transform: rotate(360deg);
 }
 
 /* Checkmark overlay on blob icon */
