@@ -88,7 +88,7 @@ img.season-no-match:hover {
   flex-basis: auto !important;
   grid-column: auto !important;
   grid-row: auto !important;
-  top: 8px;
+  bottom: 8px;
   left: 8px;
   width: 28px !important;
   height: 28px !important;
